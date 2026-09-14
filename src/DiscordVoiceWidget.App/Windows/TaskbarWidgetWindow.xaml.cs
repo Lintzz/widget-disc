@@ -1,11 +1,15 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using static DiscordVoiceWidget.App.NativeMethods;
 
 namespace DiscordVoiceWidget.App;
+
+/// <summary>O que o menu de contexto do widget mostra sobre o overlay.</summary>
+internal readonly record struct OverlayMenuState(bool Enabled, bool Moving, string ToggleHotkey, string MoveHotkey);
 
 /// <summary>
 /// Janela do widget na barra de tarefas, embutida DENTRO da barra.
@@ -27,7 +31,7 @@ namespace DiscordVoiceWidget.App;
 /// - Se o explorer reiniciar, a barra e destruida e leva a janela junto. O App recria
 ///   as janelas quando isso acontece (ver App.OnWidgetWindowClosed).
 /// - Janelas filhas nao recebem avisos do sistema (resolucao, reinicio do explorer):
-///   eles chegam pela janela oculta do icone da bandeja e o App repassa.
+///   eles chegam por uma janela oculta de nivel superior (ShellEventsWindow) e o App repassa.
 ///
 /// Agendamento: fora de call nada roda. Em call, a unica sondagem e a largura de outros
 /// widgets na barra (2 s) e o relogio da barra secundaria, na virada do minuto.
@@ -49,6 +53,9 @@ public partial class TaskbarWidgetWindow : Window
     private readonly DispatcherTimer _clockTimer;
     private readonly VoiceWidgetViewModel _viewModel;
     private readonly TaskbarClockLocator _clockLocator = new();
+
+    /// <summary>Widgets vizinhos da ultima varredura completa (ver GetDockedWidgets).</summary>
+    private readonly List<IntPtr> _dockedWidgets = [];
 
     private HwndSource? _source;
 
@@ -84,6 +91,11 @@ public partial class TaskbarWidgetWindow : Window
 
     public event EventHandler? ReconnectRequested;
     public event EventHandler? SettingsRequested;
+    public event EventHandler? OverlayToggleRequested;
+    public event EventHandler? OverlayMoveRequested;
+
+    /// <summary>Estado atual do overlay, lido pelo menu de contexto ao abrir.</summary>
+    internal Func<OverlayMenuState>? OverlayStateProvider { get; set; }
 
     /// <summary>
     /// Mudou entre "trabalhando" (em call, ou configurado para ficar sempre visivel) e
@@ -234,7 +246,7 @@ public partial class TaskbarWidgetWindow : Window
 
         if (TaskbarPositionHelper.GetPhysicalSize(this) is not { } size) return;
 
-        var blockers = TaskbarPositionHelper.GetDockedWidgets(Handle, taskbar);
+        var blockers = TaskbarPositionHelper.GetDockedWidgets(Handle, taskbar, _dockedWidgets);
         var position = TaskbarPositionHelper.ComputePosition(taskbar, size.Width, size.Height, blockers);
 
         // Mover a janela gera mensagens e redesenho: so quando mudou de fato.
@@ -306,6 +318,31 @@ public partial class TaskbarWidgetWindow : Window
     // -----------------------------------------------------------------------
     // Menu
     // -----------------------------------------------------------------------
+
+    private void OnMenuOpened(object sender, RoutedEventArgs e)
+    {
+        // O estado do overlay muda por atalho, pelas configuracoes e pelo proprio
+        // overlay; ler na abertura dispensa manter o menu sincronizado o tempo todo.
+        if (OverlayStateProvider?.Invoke() is not { } state) return;
+
+        // Itens achados pelo Tag: o menu fica no escopo de nomes da view, sem x:Name.
+        var items = ((ContextMenu)sender).Items.OfType<MenuItem>().ToList();
+        var overlayItem = items.First(i => Equals(i.Tag, "Overlay"));
+        var moveItem = items.First(i => Equals(i.Tag, "MoveOverlay"));
+
+        overlayItem.IsChecked = state.Enabled;
+        overlayItem.InputGestureText = state.ToggleHotkey;
+
+        moveItem.IsChecked = state.Moving;
+        moveItem.Header = state.Moving ? "Fixar overlay aqui" : "Mover overlay";
+        moveItem.InputGestureText = state.MoveHotkey;
+    }
+
+    private void OnOverlayToggleClick(object sender, RoutedEventArgs e)
+        => OverlayToggleRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnOverlayMoveClick(object sender, RoutedEventArgs e)
+        => OverlayMoveRequested?.Invoke(this, EventArgs.Empty);
 
     private void OnSettingsClick(object sender, RoutedEventArgs e)
         => SettingsRequested?.Invoke(this, EventArgs.Empty);

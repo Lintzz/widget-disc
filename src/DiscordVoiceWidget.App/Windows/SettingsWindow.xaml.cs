@@ -123,7 +123,7 @@ public partial class SettingsWindow : Window
     public event Action? CredentialsChangeRequested;
 
     /// <summary>
-    /// Reflete mudancas feitas fora desta tela (atalho de teclado, menu da bandeja)
+    /// Reflete mudancas feitas fora desta tela (atalho de teclado, menu do widget)
     /// enquanto ela esta aberta, para que a proxima edicao aqui nao as desfaca.
     /// </summary>
     public void ReflectExternalChange(WidgetSettings current)

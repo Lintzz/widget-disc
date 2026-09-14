@@ -111,7 +111,7 @@ src/DiscordVoiceWidget.App/     aplicação WPF
   Classes/WindowHelper.cs        topmost, no-activate  (portado do FluentFlyout)
   Classes/TaskbarPositionHelper  qual barra usar, âncora e desvio de outros widgets
   Classes/TaskbarClockLocator    relógio da barra secundária via UI Automation
-  Classes/TrayIcon.cs            ícone na bandeja com cor por estado
+  Classes/ShellEventsWindow.cs   janela oculta que repassa avisos do sistema
   Classes/WidgetSettings.cs      settings.json
   Classes/StartupRegistration    iniciar com o Windows (HKCU\...\Run)
   Classes/FileLog.cs             log diário
@@ -188,9 +188,9 @@ em call com 4 pessoas.
 4. **Varredura só da faixa topmost.** Janelas por cima da barra precisam ser topmost,
    e as topmost ficam no topo da ordem Z. Descer a partir do topo e parar na primeira
    não-topmost visita 61 janelas em vez de 468: 17,7× mais rápido, mesmo resultado.
-5. **Sem WinForms.** O ícone da bandeja usava o `NotifyIcon` do WinForms, que puxava
-   ~17 MB de módulos para dentro do processo. Agora é `Shell_NotifyIcon` direto, com
-   ícone desenhado pelo WPF e menu do WPF.
+5. **Sem WinForms e sem ícone na bandeja.** O `NotifyIcon` do WinForms puxava ~17 MB
+   de módulos para dentro do processo. O ícone saiu de vez: o menu fica no próprio
+   widget (botão direito) e as configurações também abrem pelo Menu Iniciar.
 6. **Memória ociosa devolvida ao sistema** após a inicialização, ao sair de call e ao
    fechar as configurações (no máximo a cada 2 min): coleta agressiva do GC e corte do
    working set. É memória física a mais disponível para o jogo.
@@ -233,7 +233,7 @@ Consequências:
 - **Reinício do explorer:** a barra destruída leva a janela filha junto. O app percebe
   e recria o widget quando a barra nova existe.
 - **Avisos do sistema:** janelas filhas não recebem broadcasts (resolução, reinício do
-  explorer); a janela oculta do ícone da bandeja recebe e repassa.
+  explorer); uma janela oculta de nível superior (`ShellEventsWindow`) recebe e repassa.
 - **Fila de entrada compartilhada:** janela filha de outro processo divide a fila de
   entrada com a thread da barra. A thread de UI do widget só trabalha quando algo muda,
   então não atrasa o explorer.

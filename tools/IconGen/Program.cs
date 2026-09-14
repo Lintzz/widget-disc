@@ -5,8 +5,7 @@ using System.Windows.Media.Imaging;
 
 // ---------------------------------------------------------------------------
 // Gera assets/DiscordVoiceWidget.ico: icone do executavel, do atalho e do
-// instalador. Mesmo desenho do icone da bandeja (TrayIcon.RenderPng), no estado
-// "conectado".
+// instalador: microfone branco sobre circulo azul.
 //
 //   dotnet run --project tools/IconGen -- assets/DiscordVoiceWidget.ico
 //

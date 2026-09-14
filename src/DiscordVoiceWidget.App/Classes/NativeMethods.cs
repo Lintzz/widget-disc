@@ -137,10 +137,6 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     public static partial IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
 
-    [LibraryImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static partial bool DestroyIcon(IntPtr hIcon);
-
     // Retornos de GetWindowRgnBox.
     public const int RGN_ERROR = 0;
     public const int NULLREGION = 1;
@@ -154,18 +150,11 @@ internal static partial class NativeMethods
 
     // ---- mensagens de janela usadas pelos hooks ---------------------------
     public const int WM_SETTINGCHANGE = 0x001A;
-    public const int WM_CONTEXTMENU = 0x007B;
     public const int WM_DISPLAYCHANGE = 0x007E;
-    public const int WM_LBUTTONDBLCLK = 0x0203;
     public const int WM_DPICHANGED = 0x02E0;
-    public const int WM_APP = 0x8000;
 
     [LibraryImport("user32.dll", EntryPoint = "RegisterWindowMessageW", StringMarshalling = StringMarshalling.Utf16)]
     public static partial uint RegisterWindowMessage(string lpString);
-
-    [LibraryImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static partial bool SetForegroundWindow(IntPtr hWnd);
 
     // ---- eventos de primeiro plano ----------------------------------------
     public const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
@@ -198,71 +187,6 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool UnhookWinEvent(IntPtr hWinEventHook);
-
-    // ---- icone da bandeja -------------------------------------------------
-    public const uint NIM_ADD = 0x00000000;
-    public const uint NIM_MODIFY = 0x00000001;
-    public const uint NIM_DELETE = 0x00000002;
-    public const uint NIM_SETVERSION = 0x00000004;
-
-    public const uint NIF_MESSAGE = 0x00000001;
-    public const uint NIF_ICON = 0x00000002;
-    public const uint NIF_TIP = 0x00000004;
-    public const uint NIF_INFO = 0x00000010;
-    public const uint NIF_SHOWTIP = 0x00000080;
-
-    public const uint NIIF_INFO = 0x00000001;
-    public const uint NOTIFYICON_VERSION_4 = 4;
-
-    public const int SM_CXSMICON = 49;
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public struct NOTIFYICONDATA
-    {
-        public int cbSize;
-        public IntPtr hWnd;
-        public uint uID;
-        public uint uFlags;
-        public uint uCallbackMessage;
-        public IntPtr hIcon;
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
-        public string szTip;
-
-        public uint dwState;
-        public uint dwStateMask;
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
-        public string szInfo;
-
-        public uint uVersion;
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)]
-        public string szInfoTitle;
-
-        public uint dwInfoFlags;
-        public Guid guidItem;
-        public IntPtr hBalloonIcon;
-    }
-
-    // DllImport: struct com strings de tamanho fixo nao e blittable para o LibraryImport.
-    [DllImport("shell32.dll", EntryPoint = "Shell_NotifyIconW", CharSet = CharSet.Unicode)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    public static extern bool Shell_NotifyIcon(uint dwMessage, ref NOTIFYICONDATA lpData);
-
-    [LibraryImport("user32.dll")]
-    public static partial int GetSystemMetrics(int nIndex);
-
-    /// <summary>Aceita PNG direto (Vista+): o icone e desenhado pelo WPF e codificado em PNG.</summary>
-    [LibraryImport("user32.dll", SetLastError = true)]
-    public static partial IntPtr CreateIconFromResourceEx(
-        byte[] presbits,
-        uint dwResSize,
-        [MarshalAs(UnmanagedType.Bool)] bool fIcon,
-        uint dwVer,
-        int cxDesired,
-        int cyDesired,
-        uint flags);
 
     // ---- overlay: cliques atravessando, cursor e monitores ---------------
     /// <summary>Com WS_EX_LAYERED, o mouse passa direto para a janela de baixo (o jogo).</summary>

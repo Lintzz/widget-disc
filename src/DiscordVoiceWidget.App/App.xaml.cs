@@ -37,7 +37,7 @@ public partial class App : Application
     /// unica conexao com o Discord e um unico estado, desenhado em cada tela.
     /// </summary>
     private readonly List<TaskbarWidgetWindow> _windows = [];
-    private TrayIcon? _tray;
+    private ShellEventsWindow? _shellEvents;
     private SettingsWindow? _settingsWindow;
     private VoiceConnectionState _state = VoiceConnectionState.Connecting;
     private DispatcherTimer? _trimTimer;
@@ -93,20 +93,15 @@ public partial class App : Application
         _settings = WidgetSettings.Load();
 
         _viewModel = new VoiceWidgetViewModel();
-        _tray = new TrayIcon();
-        _tray.SettingsRequested += OpenSettings;
-        _tray.ReconnectRequested += async () => await RestartSessionAsync();
-        _tray.ExitRequested += Shutdown;
-        _tray.OverlayToggleRequested += ToggleOverlay;
-        _tray.OverlayMoveRequested += ToggleOverlayMove;
 
         // Os widgets vivem dentro da barra (janelas filhas) e nao recebem avisos do
-        // sistema; a janela oculta da bandeja recebe e repassa.
-        _tray.DisplayChanged += () =>
+        // sistema; uma janela oculta de nivel superior recebe e repassa.
+        _shellEvents = new ShellEventsWindow();
+        _shellEvents.DisplayChanged += () =>
         {
             foreach (var window in _windows) window.OnDisplayChanged();
         };
-        _tray.TaskbarRecreated += () =>
+        _shellEvents.TaskbarRecreated += () =>
         {
             foreach (var window in _windows) window.OnTaskbarRecreated();
             ScheduleWindowResync();
@@ -188,11 +183,8 @@ public partial class App : Application
         session.Log += FileLog.Write;
 
         // Todos os eventos chegam na thread do pipe: marshalar antes de tocar na UI.
-        session.ParticipantsChanged += participants => Post(() =>
-        {
-            _viewModel!.Sync(participants, session.SelfUserId);
-            UpdateTray();
-        });
+        session.ParticipantsChanged += participants =>
+            Post(() => _viewModel!.Sync(participants, session.SelfUserId));
 
         session.SpeakingChanged += (userId, speaking) =>
             Post(() => _viewModel!.SetSpeaking(userId, speaking));
@@ -201,7 +193,6 @@ public partial class App : Application
         {
             _viewModel!.SelfMuted = muted;
             _viewModel.SelfDeafened = deafened;
-            UpdateTray();
         });
 
         session.StateChanged += (state, detail) => Post(() => OnStateChanged(state, detail));
@@ -234,7 +225,7 @@ public partial class App : Application
 
         if (updated is null)
         {
-            _tray?.Notify("Widget pausado", "O Discord recusou as credenciais. Corrija em Configurações → Trocar app do Discord.");
+            Notify("Widget pausado", "O Discord recusou as credenciais. Corrija em Configurações → Trocar app do Discord.");
             return;
         }
 
@@ -262,32 +253,23 @@ public partial class App : Application
         // autorizacao abriria no Discord sem nenhuma pista do porque.
         if (state == VoiceConnectionState.NeedsAuthorization && previous != state)
         {
-            _tray?.Notify("Autorização necessária", "Um pedido de autorização abriu no Discord. Clique em Autorizar.");
+            Notify("Autorização necessária", "Um pedido de autorização abriu no Discord. Clique em Autorizar.");
         }
-
-        UpdateTray();
 
         // O tamanho muda junto com o conteudo; reancorar.
         foreach (var window in _windows) window.Reposition();
     }
 
-    private void UpdateTray()
+    /// <summary>
+    /// Aviso que precisa ser visto mesmo com o widget escondido (fora de call nada
+    /// dele aparece na tela). Enfileirado no Dispatcher: a caixa roda um laco de
+    /// mensagens proprio e nao deve abrir no meio de uma mudanca de estado.
+    /// </summary>
+    private void Notify(string title, string text)
     {
-        if (_tray is null || _viewModel is null) return;
-
-        var (trayState, status) = _state switch
-        {
-            VoiceConnectionState.InCall => (
-                _viewModel.SelfSilenced ? TrayState.InCallMuted : TrayState.InCall,
-                $"Em call com {_viewModel.Participants.Count} {(_viewModel.Participants.Count == 1 ? "pessoa" : "pessoas")}"
-                + (_viewModel.SelfDeafened ? " · ensurdecido" : _viewModel.SelfMuted ? " · microfone mutado" : "")),
-            VoiceConnectionState.Connected => (TrayState.Idle, "Conectado, fora de call"),
-            VoiceConnectionState.NeedsAuthorization => (TrayState.Connecting, "Aguardando autorização no Discord"),
-            VoiceConnectionState.Connecting => (TrayState.Connecting, "Conectando ao Discord..."),
-            _ => (TrayState.Disconnected, "Discord fechado ou indisponível"),
-        };
-
-        _tray.Update(trayState, status);
+        FileLog.Write($"aviso: {title} - {text}");
+        Dispatcher.BeginInvoke(DispatcherPriority.Background, () =>
+            MessageBox.Show(text, $"Discord Voice Widget · {title}", MessageBoxButton.OK, MessageBoxImage.Information));
     }
 
     private async Task RestartSessionAsync()
@@ -424,7 +406,6 @@ public partial class App : Application
         SyncWindows(settings);
         SyncOverlay(settings);
         RegisterHotkeys(force: false);
-        UpdateTrayOverlayState();
         _viewModel!.ApplyAvatarSize(settings.AvatarSize);
 
         if (_session is not null)
@@ -557,7 +538,7 @@ public partial class App : Application
         if (created) _overlay.Show();
     }
 
-    /// <summary>Liga/desliga pelo atalho ou pelo menu da bandeja.</summary>
+    /// <summary>Liga/desliga pelo atalho ou pelo menu do widget.</summary>
     private void ToggleOverlay()
     {
         var updated = _settings.Clone();
@@ -590,8 +571,6 @@ public partial class App : Application
 
         if (_overlay.IsMoving) _overlay.EndMove();
         else _overlay.BeginMove();
-
-        UpdateTrayOverlayState();
     }
 
     private void OnOverlayPlacementChanged(OverlayPlacement placement)
@@ -611,12 +590,11 @@ public partial class App : Application
         }
     }
 
-    private void UpdateTrayOverlayState()
-        => _tray?.SetOverlayState(
-            _settings.OverlayEnabled,
-            _overlay?.IsMoving == true,
-            _settings.ToggleOverlayHotkey,
-            _settings.MoveOverlayHotkey);
+    private OverlayMenuState CurrentOverlayMenuState() => new(
+        _settings.OverlayEnabled,
+        _overlay?.IsMoving == true,
+        _settings.ToggleOverlayHotkey,
+        _settings.MoveOverlayHotkey);
 
     /// <summary>
     /// (Re)registra os atalhos globais. So mexe quando os atalhos mudaram, salvo
@@ -645,7 +623,7 @@ public partial class App : Application
         // Outro programa (ou os dois atalhos iguais) ja ocupa a combinacao.
         var list = string.Join(", ", conflicts);
         FileLog.Write($"atalho indisponivel: {list}");
-        _tray?.Notify("Atalho indisponível", $"{list} já está em uso por outro programa. Escolha outro nas configurações.");
+        Notify("Atalho indisponível", $"{list} já está em uso por outro programa. Escolha outro nas configurações.");
     }
 
     // -----------------------------------------------------------------------
@@ -691,6 +669,9 @@ public partial class App : Application
         var window = new TaskbarWidgetWindow(_viewModel!);
         window.ReconnectRequested += async (_, _) => await RestartSessionAsync();
         window.SettingsRequested += (_, _) => OpenSettings();
+        window.OverlayToggleRequested += (_, _) => ToggleOverlay();
+        window.OverlayMoveRequested += (_, _) => ToggleOverlayMove();
+        window.OverlayStateProvider = CurrentOverlayMenuState;
         window.Closed += (_, _) => OnWidgetWindowClosed(window);
 
         // Saiu da call: a lista de participantes e os avatares ja nao estao na tela.
@@ -735,9 +716,7 @@ public partial class App : Application
         // iniciar nada e nao devem aparecer no log como encerramento do widget.
         if (_exitSignal is not null) FileLog.Write("encerrando");
 
-        // Primeiro o icone: se algo abaixo demorar, ele nao fica orfao na bandeja.
-        _tray?.Dispose();
-
+        _shellEvents?.Dispose();
         _hotkeys?.Dispose();
         _exitWait?.Unregister(null);
         _settingsWait?.Unregister(null);

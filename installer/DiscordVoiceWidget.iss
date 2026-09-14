@@ -129,8 +129,8 @@ end;
 { ------------------------------------------------------------------------- }
 
 { Pede para a instancia aberta encerrar sozinha ("--exit") e espera o mutex  }
-{ de instancia unica sumir. Encerrar pelo proprio app remove o icone da      }
-{ bandeja e fecha a conexao com o Discord direito, o que um taskkill nao faz.}
+{ de instancia unica sumir. Encerrar pelo proprio app fecha a conexao com o  }
+{ Discord direito, o que um taskkill nao faz.                                }
 procedure CloseRunningApp(const ExePath: String);
 var
   ResultCode, Waited: Integer;

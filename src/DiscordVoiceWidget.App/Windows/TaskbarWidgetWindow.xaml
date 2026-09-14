@@ -15,7 +15,10 @@
 
     <local:VoiceWidgetView x:Name="View">
         <local:VoiceWidgetView.ContextMenu>
-            <ContextMenu>
+            <ContextMenu Opened="OnMenuOpened">
+                <MenuItem Tag="Overlay" Header="Overlay nos jogos" Click="OnOverlayToggleClick" />
+                <MenuItem Tag="MoveOverlay" Header="Mover overlay" Click="OnOverlayMoveClick" />
+                <Separator />
                 <MenuItem Header="Configurações..." Click="OnSettingsClick" />
                 <MenuItem Header="Reconectar" Click="OnReconnectClick" />
                 <Separator />

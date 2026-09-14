@@ -21,7 +21,7 @@ namespace DiscordVoiceWidget.App;
 /// jogando, ela nunca rouba um clique. No modo mover ela passa a aceitar o mouse
 /// para ser arrastada.
 ///
-/// Visibilidade e escolha do usuario, sem deteccao automatica: ligado (atalho, bandeja
+/// Visibilidade e escolha do usuario, sem deteccao automatica: ligado (atalho, menu do widget
 /// ou configuracoes), aparece enquanto o widget estiver ativo (em call); desligado, a
 /// janela nem existe.
 ///
@@ -116,7 +116,7 @@ public partial class OverlayWindow : Window
         {
             _moveHotkeyText = value;
             MoveHintText.Text = string.IsNullOrEmpty(value)
-                ? "Arraste para posicionar  ·  menu da bandeja para fixar"
+                ? "Arraste para posicionar  ·  menu do widget para fixar"
                 : $"Arraste para posicionar  ·  {value} para fixar";
         }
     }

@@ -162,10 +162,19 @@ internal static class TaskbarPositionHelper
     /// O filtro de janelas soltas e deliberadamente restritivo. Sem ele entram o
     /// ShellHandwritingCanvas e o jogo em tela cheia (topmost e do tamanho da tela)
     /// e o painel do Vanguard, cujo retangulo vaza para fora do monitor.
+    ///
+    /// Com o menu Iniciar aberto, o Windows devolve so parte das filhas da barra:
+    /// somem este widget e o FluentFlyout, embora continuem visiveis e no lugar. Sem
+    /// eles na lista, o widget pulava para cima do vizinho ate o menu fechar. A
+    /// propria janela serve de prova: se ela nao apareceu, a enumeracao veio
+    /// incompleta e os widgets de <paramref name="lastSeen"/> (a ultima varredura
+    /// completa) sao consultados direto pelo handle.
     /// </summary>
-    public static List<RECT> GetDockedWidgets(IntPtr self, TaskbarInfo taskbar)
+    public static List<RECT> GetDockedWidgets(IntPtr self, TaskbarInfo taskbar, List<IntPtr> lastSeen)
     {
         var found = new List<RECT>();
+        var handles = new List<IntPtr>();
+        var sawSelf = false;
         var bar = taskbar.Bounds;
 
         GetWindowThreadProcessId(taskbar.Handle, out var explorerPid);
@@ -190,26 +199,55 @@ internal static class TaskbarPositionHelper
             if (handle == self || !GetWindowRect(handle, out var window) || !Intersects(window, bar)) continue;
             if (!IsWindowVisible(handle) || IsShellWindow(ClassNameOf(handle))) continue;
 
-            if (VisibleBounds(handle, window, taskbar) is { } rect) found.Add(rect);
+            if (VisibleBounds(handle, window, taskbar) is { } rect)
+            {
+                found.Add(rect);
+                handles.Add(handle);
+            }
         }
 
         // Variavel local em vez de lambda inline: mantem o delegate enraizado durante
         // toda a chamada nativa, fora do alcance do GC.
         EnumWindowsProc embedded = (handle, _) =>
         {
-            if (handle == self) return true;
+            if (handle == self)
+            {
+                sawSelf = true;
+                return true;
+            }
 
             // As filhas do proprio explorer sao a barra nativa (botoes, relogio).
             GetWindowThreadProcessId(handle, out var pid);
             if (pid == explorerPid || !IsWindowVisible(handle) || !GetWindowRect(handle, out var window)) return true;
 
-            if (VisibleBounds(handle, window, taskbar) is { } rect) found.Add(rect);
+            if (VisibleBounds(handle, window, taskbar) is { } rect)
+            {
+                found.Add(rect);
+                handles.Add(handle);
+            }
             return true;
         };
 
         EnumChildWindows(taskbar.Handle, embedded, IntPtr.Zero);
 
         GC.KeepAlive(embedded);
+
+        if (sawSelf)
+        {
+            lastSeen.Clear();
+            lastSeen.AddRange(handles);
+            return found;
+        }
+
+        // Enumeracao incompleta: completa com os widgets da ultima varredura boa que
+        // ainda existem. VisibleBounds descarta os que sairam desta barra.
+        foreach (var handle in lastSeen)
+        {
+            if (handles.Contains(handle) || !IsWindow(handle) || !IsWindowVisible(handle)) continue;
+            if (!GetWindowRect(handle, out var window)) continue;
+
+            if (VisibleBounds(handle, window, taskbar) is { } rect) found.Add(rect);
+        }
 
         return found;
     }

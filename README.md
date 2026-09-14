@@ -29,7 +29,7 @@
 - **Quem está mutado** ganha um selo vermelho no avatar.
 - **Um ou dois monitores**: na barra secundária (que continua visível durante jogos em tela cheia), na principal ou nas duas.
 - **Overlay sobre os jogos** opcional, com atalhos globais e cliques que atravessam a janela.
-- **Ícone na bandeja** com a cor do estado atual e acesso rápido às configurações.
+- **Menu no próprio widget**: botão direito para overlay, configurações, reconectar e sair.
 - **Leve**: cerca de 25 MB de memória, nada rodando fora de call e nenhum uso de GPU.
 
 ## Requisitos
@@ -84,26 +84,15 @@ use **Configurações → Trocar app do Discord**.
 | Seu microfone mutado, participantes mutados | ![Microfone vermelho e selos vermelhos nos avatares mutados](docs/images/taskbar-muted.png) |
 
 Passe o mouse sobre um avatar para ver o nome da pessoa. Clique com o botão direito no
-widget para abrir as configurações.
+widget para ligar o overlay, abrir as configurações, reconectar ou sair.
 
-Fora de call o widget se esconde (configurável). O ícone da bandeja fica sempre presente
-e muda de cor conforme o estado:
-
-| Cor do ícone | Estado |
-|---|---|
-| Cinza | Discord fechado ou indisponível |
-| Azul acinzentado | Conectando ou aguardando autorização |
-| Azul | Conectado, fora de call |
-| Verde | Em call |
-| Vermelho com traço | Em call com o microfone mutado ou ensurdecido |
-
-> [!TIP]
-> No Windows 11, ícones novos vão para o menu de ocultos (`^`). Arraste o ícone para a barra se
-> quiser o indicador sempre à vista.
+Fora de call o widget se esconde (configurável) e não há ícone na bandeja. Para chegar às
+configurações sem estar em call, abra o **Discord Voice Widget** de novo pelo Menu Iniciar:
+a instância que já está rodando abre a tela de configurações.
 
 ### Configurações
 
-Abra com clique duplo no ícone da bandeja. As mudanças valem na hora, sem botão Salvar.
+Abra pelo botão direito no widget ou pelo Menu Iniciar. As mudanças valem na hora, sem botão Salvar.
 
 <div align="center">
 <img src="docs/images/settings.png" width="720" alt="Tela de configurações" />
@@ -130,7 +119,7 @@ Uma cópia do widget flutuando sobre o jogo, somando-se aos widgets da barra.
 
 | Ação | Como |
 |---|---|
-| Ligar / desligar | `Ctrl+Shift+O`, menu da bandeja ou Configurações |
+| Ligar / desligar | `Ctrl+Shift+O`, menu do widget ou Configurações |
 | Posicionar | `Ctrl+Shift+P`, arraste para o lugar e `Ctrl+Shift+P` de novo para fixar |
 | Trocar os atalhos | Configurações → clique no campo e aperte a combinação (Backspace desliga) |
 
@@ -188,7 +177,7 @@ A versão vem do `<Version>` em [`DiscordVoiceWidget.App.csproj`](src/DiscordVoi
 ```
 src/
   DiscordVoiceWidget.Rpc/    biblioteca de voz: pipe do Discord, OAuth, reconexão, debounce da fala
-  DiscordVoiceWidget.App/    aplicação WPF: widget na barra, overlay, bandeja, configurações
+  DiscordVoiceWidget.App/    aplicação WPF: widget na barra, overlay, configurações
 tools/
   RpcSpike/                  harness de console sobre a biblioteca
   IconGen/                   gera o ícone em assets/
