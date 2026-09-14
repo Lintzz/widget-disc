@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- Sem versao do Windows no alvo: com ela (ex. net10.0-windows10.0.22000.0) o SDK
+         copia a projecao WinRT (Microsoft.Windows.SDK.NET.dll + WinRT.Runtime.dll, ~25 MB).
+         O FluentFlyout precisa dela para controlar midia; este widget nao usa WinRT. -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>DiscordVoiceWidget.App</RootNamespace>
+    <AssemblyName>DiscordVoiceWidget</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- Versao unica do app: o instalador le do executavel publicado (installer/build.ps1). -->
+    <Version>1.0.0</Version>
+    <Product>Discord Voice Widget</Product>
+    <!-- Vira a "Descricao do arquivo": e o nome que o Gerenciador de Tarefas mostra. -->
+    <AssemblyTitle>Discord Voice Widget</AssemblyTitle>
+    <Description>Widget de chamada de voz do Discord na barra de tarefas e sobre os jogos.</Description>
+    <!-- Gerado por tools/IconGen. As janelas WPF herdam este icone do executavel. -->
+    <ApplicationIcon>..\..\assets\DiscordVoiceWidget.ico</ApplicationIcon>
+    <!-- Exigido pelo gerador do [LibraryImport] e pelo buffer na pilha em NativeMethods. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- WPF0001: ThemeMode (tema Fluent nativo do WPF) ainda e marcado como experimental. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    Consumo de recursos. O widget fica aberto o dia todo, quase sempre parado,
+    enquanto o PC roda jogos. Cada opcao abaixo troca um custo de fundo por nada que
+    faca falta a um app deste tamanho.
+  -->
+  <PropertyGroup>
+    <!-- GC em segundo plano existe para nao pausar apps com heap grande. O heap aqui
+         tem poucos MB: a coleta bloqueante leva milissegundos, e poupa-se uma thread
+         dedicada e a memoria que ela reserva. -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+
+    <!-- PGO dinamico instrumenta metodos quentes para recompila-los melhor. Aqui quase
+         nada e quente; a instrumentacao e a recompilacao seriam trabalho sem retorno. -->
+    <TieredPGO>false</TieredPGO>
+
+    <!-- Toda serializacao JSON e gerada em compilacao (RpcJsonContext, AppJsonContext).
+         Desligar a reflexao garante que nada volte a usa-la sem querer. -->
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+  </PropertyGroup>
+
+  <!--
+    Publicacao: codigo pre-compilado (ReadyToRun). Sem ele o JIT compila tudo na
+    inicializacao, e o codigo compilado fica em memoria privada do processo; com ele,
+    o codigo vem mapeado do arquivo.
+    O RuntimeIdentifier so e fixado ao publicar, para nao mudar a pasta de saida do
+    'dotnet run' (bin\Debug\net10.0-windows\).
+  -->
+  <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <DebugType>none</DebugType>
+    <!-- Sem .pdb das bibliotecas referenciadas na pasta publicada. -->
+    <AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DiscordVoiceWidget.Rpc\DiscordVoiceWidget.Rpc.csproj" />
+  </ItemGroup>
+
+</Project>

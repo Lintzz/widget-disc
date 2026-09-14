@@ -1,0 +1,26 @@
+<Window x:Class="DiscordVoiceWidget.App.TaskbarWidgetWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:DiscordVoiceWidget.App"
+        Title="Discord Voice Widget"
+        SizeToContent="WidthAndHeight"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        ResizeMode="NoResize"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True">
+
+    <local:VoiceWidgetView x:Name="View">
+        <local:VoiceWidgetView.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="Configurações..." Click="OnSettingsClick" />
+                <MenuItem Header="Reconectar" Click="OnReconnectClick" />
+                <Separator />
+                <MenuItem Header="Sair" Click="OnExitClick" />
+            </ContextMenu>
+        </local:VoiceWidgetView.ContextMenu>
+    </local:VoiceWidgetView>
+</Window>

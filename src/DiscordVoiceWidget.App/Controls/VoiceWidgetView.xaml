@@ -1,0 +1,158 @@
+<UserControl x:Class="DiscordVoiceWidget.App.VoiceWidgetView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:DiscordVoiceWidget.App">
+
+    <!--
+        A pilula com o microfone e os avatares. E o visual inteiro do widget, usado tanto
+        pelas janelas da barra de tarefas quanto pelo overlay dos jogos: todas mostram o
+        mesmo ViewModel.
+    -->
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <local:InverseBooleanToVisibilityConverter x:Key="NotBoolToVis" />
+
+        <!-- Verde de "falando" do Discord. -->
+        <SolidColorBrush x:Key="SpeakingBrush" Color="#3BA55D" />
+        <SolidColorBrush x:Key="MutedBrush" Color="#ED4245" />
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#2B2D31" />
+        <SolidColorBrush x:Key="AvatarFallbackBrush" Color="#4E5058" />
+        <SolidColorBrush x:Key="TextBrush" Color="#DBDEE1" />
+
+        <!-- Os itens tem o participante como DataContext; as dimensoes vivem no
+             ViewModel do controle, alcancado por esta ancora. -->
+        <DataTemplate x:Key="ParticipantTemplate">
+            <Grid Width="{Binding DataContext.RingDiameter, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                  Height="{Binding DataContext.RingDiameter, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                  Margin="2,0"
+                  ToolTipService.InitialShowDelay="300">
+                <Grid.ToolTip>
+                    <ToolTip Content="{Binding DisplayName}" />
+                </Grid.ToolTip>
+
+                <!-- Anel de fala. Opacidade 0 em repouso; acende pelo gatilho abaixo. -->
+                <Ellipse x:Name="Ring"
+                         Stroke="{StaticResource SpeakingBrush}"
+                         StrokeThickness="2"
+                         Opacity="0" />
+
+                <!-- Avatar: o circulo de fallback aparece por baixo enquanto a
+                     imagem nao chega (ImageBrush com Source nula nao pinta nada). -->
+                <Grid Width="{Binding DataContext.AvatarDiameter, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                      Height="{Binding DataContext.AvatarDiameter, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                    <Ellipse Fill="{StaticResource AvatarFallbackBrush}" />
+                    <TextBlock Text="{Binding Initial}"
+                               Foreground="{StaticResource TextBrush}"
+                               FontSize="{Binding DataContext.InitialFontSize, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" />
+                    <Ellipse>
+                        <Ellipse.Fill>
+                            <ImageBrush ImageSource="{Binding Avatar}" Stretch="UniformToFill" />
+                        </Ellipse.Fill>
+                    </Ellipse>
+                </Grid>
+
+                <!-- Selo de silenciado. Desenhado num quadro fixo de 14px e escalado
+                     pelo Viewbox, para o traco acompanhar o tamanho do avatar. -->
+                <Viewbox Width="{Binding DataContext.BadgeDiameter, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                         Height="{Binding DataContext.BadgeDiameter, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                         HorizontalAlignment="Right"
+                         VerticalAlignment="Bottom"
+                         Visibility="{Binding IsSilenced, Converter={StaticResource BoolToVis}}">
+                    <Grid Width="14" Height="14">
+                        <Ellipse Fill="{StaticResource SurfaceBrush}" />
+                        <Ellipse Margin="1" Fill="{StaticResource MutedBrush}" />
+                        <Path Data="M4,4 L10,10"
+                              Stroke="White"
+                              StrokeThickness="1.6"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round" />
+                    </Grid>
+                </Viewbox>
+            </Grid>
+
+            <DataTemplate.Triggers>
+                <!-- Anel fixo enquanto a pessoa fala, liga e desliga sem animacao.
+                     Medido em call: com fades de 80/150 ms cada troca custava ~4,9 ms de
+                     CPU (varios quadros redesenhados); sem animacao, ~0,7 ms. Numa call
+                     ativa sao dezenas de trocas por minuto. -->
+                <DataTrigger Binding="{Binding IsSpeaking}" Value="True">
+                    <Setter TargetName="Ring" Property="Opacity" Value="1" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Border CornerRadius="{Binding PillCornerRadius}"
+            Background="#E62B2D31"
+            Padding="6,3">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+            <!-- Indicador do meu microfone. -->
+            <Grid Width="20" Height="20" Margin="2,0,4,0">
+                <Grid.ToolTip>
+                    <ToolTip Content="{Binding SelfMicTooltip}" />
+                </Grid.ToolTip>
+
+                <Path Data="M10,3 C8.9,3 8,3.9 8,5 L8,9 C8,10.1 8.9,11 10,11 C11.1,11 12,10.1 12,9 L12,5 C12,3.9 11.1,3 10,3 Z">
+                    <Path.Style>
+                        <Style TargetType="Path">
+                            <Setter Property="Fill" Value="{StaticResource SpeakingBrush}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelfSilenced}" Value="True">
+                                    <Setter Property="Fill" Value="{StaticResource MutedBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Path.Style>
+                </Path>
+
+                <Path Data="M5.5,9 A4.5,4.5 0 0 0 14.5,9 M10,13.5 L10,16 M7.5,16 L12.5,16"
+                      StrokeThickness="1.6"
+                      StrokeStartLineCap="Round"
+                      StrokeEndLineCap="Round">
+                    <Path.Style>
+                        <Style TargetType="Path">
+                            <Setter Property="Stroke" Value="{StaticResource SpeakingBrush}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelfSilenced}" Value="True">
+                                    <Setter Property="Stroke" Value="{StaticResource MutedBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Path.Style>
+                </Path>
+
+                <Path Data="M4,4 L16,16"
+                      Stroke="{StaticResource MutedBrush}"
+                      StrokeThickness="1.8"
+                      StrokeStartLineCap="Round"
+                      StrokeEndLineCap="Round"
+                      Visibility="{Binding SelfSilenced, Converter={StaticResource BoolToVis}}" />
+            </Grid>
+
+            <Rectangle Width="1" Height="18" Fill="#3F4147" Margin="2,0,6,0"
+                       Visibility="{Binding IsInCall, Converter={StaticResource BoolToVis}}" />
+
+            <ItemsControl ItemsSource="{Binding Participants}"
+                          ItemTemplate="{StaticResource ParticipantTemplate}"
+                          Visibility="{Binding IsInCall, Converter={StaticResource BoolToVis}}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+            </ItemsControl>
+
+            <TextBlock Text="{Binding StatusText}"
+                       Foreground="#9A9EA5"
+                       FontSize="11"
+                       VerticalAlignment="Center"
+                       Margin="2,0,6,0"
+                       Visibility="{Binding IsInCall, Converter={StaticResource NotBoolToVis}}" />
+        </StackPanel>
+    </Border>
+</UserControl>

@@ -1,0 +1,439 @@
+using System.Text.Json;
+
+namespace DiscordVoiceWidget.Rpc;
+
+/// <summary>
+/// Traduz o RPC cru do Discord em estado de voz pronto para a interface.
+///
+/// Cuida de: autenticacao (com refresh), reconexao com backoff, troca de canal
+/// (subscribe/unsubscribe) e do debounce dos eventos de fala.
+///
+/// Os eventos sao disparados na thread do loop de leitura do pipe. Quem consome
+/// na UI precisa marshalar para o Dispatcher.
+/// </summary>
+public sealed class VoiceSessionService : IAsyncDisposable
+{
+    private static readonly string[] Scopes = ["rpc", "rpc.voice.read", "identify"];
+
+    private static readonly string[] ChannelEvents =
+    [
+        "VOICE_STATE_CREATE",
+        "VOICE_STATE_UPDATE",
+        "VOICE_STATE_DELETE",
+        "SPEAKING_START",
+        "SPEAKING_STOP",
+    ];
+
+    private readonly DiscordCredentials _credentials;
+    private readonly object _gate = new();
+    private readonly Dictionary<string, VoiceParticipant> _participants = [];
+    private readonly Dictionary<string, SpeakerRelease> _releases = [];
+    private readonly HashSet<string> _speaking = [];
+
+    private DiscordIpcClient? _ipc;
+    private CancellationTokenSource? _lifetime;
+    private Task? _supervisor;
+    private string? _channelId;
+
+    public VoiceSessionService(DiscordCredentials credentials) => _credentials = credentials;
+
+    /// <summary>
+    /// Quanto segurar o anel aceso depois de um SPEAKING_STOP.
+    ///
+    /// O Discord emite SPEAKING_START/STOP em rajadas durante a fala normal. Medido
+    /// na validacao: pausas de 150-400 ms no meio de uma unica frase. Sem segurar a
+    /// queda, o anel pisca de forma erratica em vez de acompanhar a voz; segurando
+    /// demais, ele fica aceso depois que a pessoa parou. 350 ms cobre as pausas
+    /// observadas sem atraso perceptivel.
+    /// </summary>
+    public TimeSpan SpeakingReleaseDelay { get; set; } = TimeSpan.FromMilliseconds(350);
+
+    /// <summary>Seu proprio user id, conhecido a partir do evento READY.</summary>
+    public string? SelfUserId { get; private set; }
+
+    public VoiceConnectionState State { get; private set; } = VoiceConnectionState.Disconnected;
+
+    public event Action<IReadOnlyList<VoiceParticipant>>? ParticipantsChanged;
+    public event Action<string, bool>? SpeakingChanged;
+    public event Action<bool, bool>? SelfVoiceSettingsChanged;
+    public event Action<VoiceConnectionState, string?>? StateChanged;
+    public event Action<string>? Log;
+
+    /// <summary>O Discord recusou client secret ou redirect ao trocar o code pelo token.</summary>
+    public event Action? CredentialsRejected;
+
+    public IReadOnlyList<VoiceParticipant> Participants
+    {
+        get { lock (_gate) return [.. _participants.Values]; }
+    }
+
+    /// <summary>Sobe o supervisor em segundo plano. Retorna assim que ele inicia.</summary>
+    public Task StartAsync(CancellationToken ct = default)
+    {
+        _lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        _supervisor = Task.Run(() => SuperviseAsync(_lifetime.Token), CancellationToken.None);
+        return Task.CompletedTask;
+    }
+
+    // -----------------------------------------------------------------------
+    // Supervisao e reconexao
+    // -----------------------------------------------------------------------
+
+    private async Task SuperviseAsync(CancellationToken ct)
+    {
+        var backoff = TimeSpan.FromSeconds(2);
+        var maxBackoff = TimeSpan.FromSeconds(30);
+
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                await RunSessionAsync(ct);
+                backoff = TimeSpan.FromSeconds(2);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                SetState(VoiceConnectionState.Disconnected, ex.Message);
+                Log?.Invoke($"sessao caiu: {ex.Message}");
+                if (ex is DiscordCredentialsRejectedException) CredentialsRejected?.Invoke();
+            }
+
+            ResetVoiceState();
+
+            if (ct.IsCancellationRequested) break;
+
+            Log?.Invoke($"reconectando em {backoff.TotalSeconds:0}s");
+            try { await Task.Delay(backoff, ct); }
+            catch (OperationCanceledException) { break; }
+
+            backoff = backoff * 2 > maxBackoff ? maxBackoff : backoff * 2;
+        }
+    }
+
+    /// <summary>Uma sessao completa. So retorna quando a conexao cai.</summary>
+    private async Task RunSessionAsync(CancellationToken ct)
+    {
+        SetState(VoiceConnectionState.Connecting);
+
+        await using var ipc = new DiscordIpcClient();
+        _ipc = ipc;
+
+        var died = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+        ipc.Faulted += ex => died.TrySetResult(ex);
+        ipc.Log += m => Log?.Invoke(m);
+        ipc.EventReceived += OnEventReceived;
+
+        var ready = await ipc.ConnectAsync(_credentials.ClientId, ct);
+        SelfUserId = ready.TryGetProperty("user", out var u) && u.TryGetProperty("id", out var id)
+            ? id.GetString()
+            : null;
+
+        await AuthenticateAsync(ipc, ct);
+        SetState(VoiceConnectionState.Connected);
+
+        await ipc.SubscribeAsync("VOICE_CHANNEL_SELECT", ct: ct);
+        await ipc.SubscribeAsync("VOICE_SETTINGS_UPDATE", ct: ct);
+
+        // Estado inicial: talvez ja estejamos em uma call.
+        var settings = await ipc.CommandAsync("GET_VOICE_SETTINGS", ct: ct);
+        RaiseSelfSettings(settings);
+
+        var channel = await ipc.CommandAsync("GET_SELECTED_VOICE_CHANNEL", ct: ct);
+        var currentId = channel.ValueKind == JsonValueKind.Object && channel.TryGetProperty("id", out var cid)
+            ? cid.GetString()
+            : null;
+        await BindChannelAsync(currentId, ct);
+
+        // Fica vivo ate o pipe morrer ou o app encerrar.
+        var faulted = await died.Task.WaitAsync(ct);
+        throw faulted;
+    }
+
+    private async Task AuthenticateAsync(DiscordIpcClient ipc, CancellationToken ct)
+    {
+        var stored = OAuthTokenStore.Load();
+
+        if (stored is not null && stored.NeedsRefresh && stored.RefreshToken is not null)
+        {
+            try
+            {
+                stored = await DiscordOAuth.RefreshAsync(_credentials, stored.RefreshToken, ct);
+                OAuthTokenStore.Save(stored);
+                Log?.Invoke("token renovado");
+            }
+            catch (Exception ex)
+            {
+                Log?.Invoke($"refresh falhou ({ex.Message}) - autorizando de novo");
+                stored = null;
+            }
+        }
+
+        if (stored is not null)
+        {
+            try
+            {
+                await ipc.CommandAsync("AUTHENTICATE", AccessTokenArgs(stored.AccessToken), ct: ct);
+                return;
+            }
+            catch (DiscordRpcException ex)
+            {
+                Log?.Invoke($"token recusado ({ex.Message}) - autorizando de novo");
+                OAuthTokenStore.Clear();
+            }
+        }
+
+        SetState(VoiceConnectionState.NeedsAuthorization);
+
+        // Nao envie redirect_uri aqui: o fluxo RPC recusa o campo e usa sozinho o
+        // primeiro redirect cadastrado no portal. Ele so entra na troca do code.
+        var authorize = await ipc.CommandAsync(
+            "AUTHORIZE",
+            w =>
+            {
+                w.WriteString("client_id", _credentials.ClientId);
+                w.WriteStartArray("scopes");
+                foreach (var scope in Scopes) w.WriteStringValue(scope);
+                w.WriteEndArray();
+            },
+            timeout: TimeSpan.FromMinutes(3),
+            ct: ct);
+
+        var code = authorize.GetProperty("code").GetString()
+                   ?? throw new DiscordRpcException("AUTHORIZE nao devolveu um code.");
+
+        var token = await DiscordOAuth.ExchangeCodeAsync(_credentials, code, ct);
+        OAuthTokenStore.Save(token);
+
+        await ipc.CommandAsync("AUTHENTICATE", AccessTokenArgs(token.AccessToken), ct: ct);
+    }
+
+    private static Action<Utf8JsonWriter> AccessTokenArgs(string accessToken)
+        => w => w.WriteString("access_token", accessToken);
+
+    private static Action<Utf8JsonWriter> ChannelArgs(string channelId)
+        => w => w.WriteString("channel_id", channelId);
+
+    // -----------------------------------------------------------------------
+    // Canal de voz
+    // -----------------------------------------------------------------------
+
+    private async Task BindChannelAsync(string? channelId, CancellationToken ct)
+    {
+        if (_channelId == channelId) return;
+        if (_ipc is not { } ipc) return;
+
+        if (_channelId is not null)
+        {
+            // Sem o unsubscribe, eventos de um canal ja abandonado continuam chegando.
+            foreach (var evt in ChannelEvents)
+            {
+                try { await ipc.UnsubscribeAsync(evt, ChannelArgs(_channelId), ct); }
+                catch (Exception ex) { Log?.Invoke($"unsubscribe {evt}: {ex.Message}"); }
+            }
+        }
+
+        _channelId = channelId;
+        ResetVoiceState();
+
+        if (channelId is null)
+        {
+            SetState(VoiceConnectionState.Connected);
+            ParticipantsChanged?.Invoke([]);
+            return;
+        }
+
+        foreach (var evt in ChannelEvents)
+        {
+            await ipc.SubscribeAsync(evt, ChannelArgs(channelId), ct);
+        }
+
+        var channel = await ipc.CommandAsync("GET_SELECTED_VOICE_CHANNEL", ct: ct);
+        if (channel.TryGetProperty("voice_states", out var states) && states.ValueKind == JsonValueKind.Array)
+        {
+            lock (_gate)
+            {
+                foreach (var state in states.EnumerateArray())
+                {
+                    if (VoiceParticipant.From(state) is { } p) _participants[p.UserId] = p;
+                }
+            }
+        }
+
+        var name = channel.TryGetProperty("name", out var n) ? n.GetString() : channelId;
+        Log?.Invoke($"entrou em \"{name}\" ({channelId})");
+
+        SetState(VoiceConnectionState.InCall);
+        ParticipantsChanged?.Invoke(Participants);
+    }
+
+    private void OnEventReceived(string evt, JsonElement data)
+    {
+        switch (evt)
+        {
+            case "SPEAKING_START":
+                if (UserIdOf(data) is { } starting) OnSpeaking(starting, true);
+                return;
+
+            case "SPEAKING_STOP":
+                if (UserIdOf(data) is { } stopping) OnSpeaking(stopping, false);
+                return;
+
+            case "VOICE_STATE_CREATE":
+            case "VOICE_STATE_UPDATE":
+            {
+                if (VoiceParticipant.From(data) is not { } p) return;
+                lock (_gate) _participants[p.UserId] = p;
+                ParticipantsChanged?.Invoke(Participants);
+                return;
+            }
+
+            case "VOICE_STATE_DELETE":
+            {
+                if (VoiceParticipant.From(data) is not { } p) return;
+                lock (_gate)
+                {
+                    _participants.Remove(p.UserId);
+                    _speaking.Remove(p.UserId);
+                    if (_releases.Remove(p.UserId, out var release)) release.Timer.Dispose();
+                }
+                ParticipantsChanged?.Invoke(Participants);
+                return;
+            }
+
+            case "VOICE_CHANNEL_SELECT":
+            {
+                var channelId = data.TryGetProperty("channel_id", out var c) && c.ValueKind == JsonValueKind.String
+                    ? c.GetString()
+                    : null;
+                _ = BindChannelAsync(channelId, _lifetime?.Token ?? default);
+                return;
+            }
+
+            case "VOICE_SETTINGS_UPDATE":
+                RaiseSelfSettings(data);
+                return;
+        }
+    }
+
+    private void RaiseSelfSettings(JsonElement settings)
+    {
+        if (settings.ValueKind != JsonValueKind.Object) return;
+        var muted = settings.TryGetProperty("mute", out var m) && m.ValueKind == JsonValueKind.True;
+        var deafened = settings.TryGetProperty("deaf", out var d) && d.ValueKind == JsonValueKind.True;
+        SelfVoiceSettingsChanged?.Invoke(muted, deafened);
+    }
+
+    // -----------------------------------------------------------------------
+    // Debounce da fala
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Queda pendente do anel de uma pessoa. Um timer por pessoa, criado uma vez e
+    /// reprogramado a cada SPEAKING_STOP: numa call ativa chegam varios eventos por
+    /// segundo, e criar CancellationTokenSource + Task.Delay a cada um gerava lixo
+    /// continuo para o GC.
+    /// </summary>
+    private sealed class SpeakerRelease(Timer timer)
+    {
+        public Timer Timer { get; } = timer;
+
+        /// <summary>Instante (Environment.TickCount64) em que o anel apaga; 0 = nada pendente.</summary>
+        public long DeadlineMs { get; set; }
+    }
+
+    private void OnSpeaking(string userId, bool speaking)
+    {
+        bool changed;
+        lock (_gate)
+        {
+            if (!speaking)
+            {
+                // Nao apaga na hora: agenda a queda e ve se a pessoa volta a falar antes.
+                if (!_speaking.Contains(userId)) return;
+
+                if (!_releases.TryGetValue(userId, out var release))
+                {
+                    release = new SpeakerRelease(new Timer(OnReleaseDue, userId, Timeout.Infinite, Timeout.Infinite));
+                    _releases[userId] = release;
+                }
+
+                var delay = SpeakingReleaseDelay;
+                release.DeadlineMs = Environment.TickCount64 + (long)delay.TotalMilliseconds;
+                release.Timer.Change(delay, Timeout.InfiniteTimeSpan);
+                return;
+            }
+
+            // Voltou a falar: zerar o prazo invalida um disparo que ja esteja a caminho.
+            if (_releases.TryGetValue(userId, out var pending)) pending.DeadlineMs = 0;
+            changed = _speaking.Add(userId);
+        }
+
+        if (changed) SpeakingChanged?.Invoke(userId, true);
+    }
+
+    private void OnReleaseDue(object? state)
+    {
+        var userId = (string)state!;
+        bool changed;
+
+        lock (_gate)
+        {
+            if (!_releases.TryGetValue(userId, out var release) || release.DeadlineMs == 0) return;
+
+            // O timer pode disparar alguns ms antes do TickCount64 alcancar o prazo
+            // (resolucoes diferentes). Ignorar esse disparo deixaria o anel aceso para
+            // sempre, entao ele e reagendado pelo que falta.
+            var remaining = release.DeadlineMs - Environment.TickCount64;
+            if (remaining > 0)
+            {
+                release.Timer.Change(remaining, Timeout.Infinite);
+                return;
+            }
+
+            release.DeadlineMs = 0;
+            changed = _speaking.Remove(userId);
+        }
+
+        if (changed) SpeakingChanged?.Invoke(userId, false);
+    }
+
+    private void ResetVoiceState()
+    {
+        lock (_gate)
+        {
+            foreach (var release in _releases.Values) release.Timer.Dispose();
+            _releases.Clear();
+            _participants.Clear();
+            _speaking.Clear();
+        }
+    }
+
+    private static string? UserIdOf(JsonElement data)
+        => data.ValueKind == JsonValueKind.Object && data.TryGetProperty("user_id", out var u)
+            ? u.GetString()
+            : null;
+
+    private void SetState(VoiceConnectionState state, string? detail = null)
+    {
+        if (State == state) return;
+        State = state;
+        StateChanged?.Invoke(state, detail);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_lifetime is not null) await _lifetime.CancelAsync();
+
+        if (_supervisor is not null)
+        {
+            try { await _supervisor; } catch { /* encerramento */ }
+        }
+
+        ResetVoiceState();
+        _lifetime?.Dispose();
+    }
+}

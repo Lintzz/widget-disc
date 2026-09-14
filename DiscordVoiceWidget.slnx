@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DiscordVoiceWidget.App/DiscordVoiceWidget.App.csproj" />
+    <Project Path="src/DiscordVoiceWidget.Rpc/DiscordVoiceWidget.Rpc.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/IconGen/IconGen.csproj" />
+    <Project Path="tools/RpcSpike/RpcSpike.csproj" />
+  </Folder>
+</Solution>

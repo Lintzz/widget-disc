@@ -1,0 +1,53 @@
+# ---------------------------------------------------------------------------
+# Build e publicacao
+# ---------------------------------------------------------------------------
+[Bb]in/
+[Oo]bj/
+publish/
+*.binlog
+TestResults/
+
+# Saida do instalador (installer/build.ps1): vai para as Releases do GitHub
+artifacts/
+
+# ---------------------------------------------------------------------------
+# Segredos: client_id / client_secret do Discord NUNCA entram no repo.
+# Em uso eles vivem em %APPDATA%\DiscordVoiceWidget\ (config.json e token.dat).
+# ---------------------------------------------------------------------------
+config.json
+token.dat
+*.token
+.env
+*.env
+# Certificados de assinatura de codigo
+*.pfx
+*.p12
+*.snk
+
+# ---------------------------------------------------------------------------
+# Logs
+# ---------------------------------------------------------------------------
+logs/
+*.log
+
+# ---------------------------------------------------------------------------
+# IDEs e ferramentas
+# ---------------------------------------------------------------------------
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.rsuser
+*.DotSettings.user
+.claude/settings.local.json
+.firecrawl/
+
+# ---------------------------------------------------------------------------
+# Sistema operacional
+# ---------------------------------------------------------------------------
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+.DS_Store
