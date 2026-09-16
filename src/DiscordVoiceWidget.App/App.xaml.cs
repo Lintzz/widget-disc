@@ -72,8 +72,10 @@ public partial class App : Application
         }
 
         // "--demo": call ficticia, sem Discord e sem gravar configuracoes. Usado para os
-        // prints do README; "--demo-muted" mostra o proprio microfone mutado.
-        var demoMuted = e.Args.Any(arg => arg.Equals("--demo-muted", StringComparison.OrdinalIgnoreCase));
+        // prints do README; "--demo-muted" mostra o proprio microfone mutado e
+        // "--demo-deafened", ensurdecido.
+        var demoDeafened = e.Args.Any(arg => arg.Equals("--demo-deafened", StringComparison.OrdinalIgnoreCase));
+        var demoMuted = demoDeafened || e.Args.Any(arg => arg.Equals("--demo-muted", StringComparison.OrdinalIgnoreCase));
         _demoMode = demoMuted || e.Args.Any(arg => arg.Equals("--demo", StringComparison.OrdinalIgnoreCase));
 
         FileLog.Write(_demoMode ? "iniciando (modo demonstracao)" : "iniciando");
@@ -119,7 +121,7 @@ public partial class App : Application
 
         if (_demoMode)
         {
-            _demo = new DemoCall(_viewModel, demoMuted);
+            _demo = new DemoCall(_viewModel, demoMuted, demoDeafened);
             OnStateChanged(VoiceConnectionState.InCall, null);
             _demo.Start();
             return;

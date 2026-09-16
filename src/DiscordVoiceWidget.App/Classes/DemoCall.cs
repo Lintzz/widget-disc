@@ -33,10 +33,11 @@ internal sealed class DemoCall : IDisposable
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(450) };
     private int _step;
 
-    public DemoCall(VoiceWidgetViewModel viewModel, bool selfMuted)
+    public DemoCall(VoiceWidgetViewModel viewModel, bool selfMuted, bool selfDeafened = false)
     {
         _viewModel = viewModel;
         _viewModel.SelfMuted = selfMuted;
+        _viewModel.SelfDeafened = selfDeafened;
 
         foreach (var person in People)
         {

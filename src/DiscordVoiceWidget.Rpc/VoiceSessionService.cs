@@ -30,6 +30,14 @@ public sealed class VoiceSessionService : IAsyncDisposable
     private readonly Dictionary<string, SpeakerRelease> _releases = [];
     private readonly HashSet<string> _speaking = [];
 
+    /// <summary>
+    /// Uma troca de canal por vez. Ser movido de call gera varios eventos quase juntos
+    /// (VOICE_STATE_DELETE do canal antigo, VOICE_CHANNEL_SELECT, as vezes um null no
+    /// meio); trocas concorrentes se atropelavam no unsubscribe/subscribe e o widget
+    /// podia terminar preso no canal errado ou fora de call.
+    /// </summary>
+    private readonly SemaphoreSlim _channelGate = new(1, 1);
+
     private DiscordIpcClient? _ipc;
     private CancellationTokenSource? _lifetime;
     private Task? _supervisor;
@@ -122,6 +130,10 @@ public sealed class VoiceSessionService : IAsyncDisposable
         await using var ipc = new DiscordIpcClient();
         _ipc = ipc;
 
+        // Inscricoes nao sobrevivem a um pipe novo: sem zerar, a reconexao achava que ja
+        // acompanhava o canal e nunca se inscrevia de novo.
+        _channelId = null;
+
         var died = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
         ipc.Faulted += ex => died.TrySetResult(ex);
         ipc.Log += m => Log?.Invoke(m);
@@ -142,11 +154,7 @@ public sealed class VoiceSessionService : IAsyncDisposable
         var settings = await ipc.CommandAsync("GET_VOICE_SETTINGS", ct: ct);
         RaiseSelfSettings(settings);
 
-        var channel = await ipc.CommandAsync("GET_SELECTED_VOICE_CHANNEL", ct: ct);
-        var currentId = channel.ValueKind == JsonValueKind.Object && channel.TryGetProperty("id", out var cid)
-            ? cid.GetString()
-            : null;
-        await BindChannelAsync(currentId, ct);
+        await SyncChannelAsync(ct);
 
         // Fica vivo ate o pipe morrer ou o app encerrar.
         var faulted = await died.Task.WaitAsync(ct);
@@ -221,10 +229,60 @@ public sealed class VoiceSessionService : IAsyncDisposable
     // Canal de voz
     // -----------------------------------------------------------------------
 
-    private async Task BindChannelAsync(string? channelId, CancellationToken ct)
+    /// <summary>
+    /// Pergunta ao Discord em que canal estamos e se alinha a ele.
+    ///
+    /// O id que vem no evento nao e usado: com eventos enfileirados ele pode ja estar
+    /// velho (movido duas vezes seguidas, ou o null intermediario de uma troca). O que
+    /// vale e a resposta do GET_SELECTED_VOICE_CHANNEL no momento em que a troca roda.
+    /// </summary>
+    private async Task SyncChannelAsync(CancellationToken ct)
+    {
+        await _channelGate.WaitAsync(ct);
+        try
+        {
+            if (_ipc is not { } ipc) return;
+
+            var channel = await ipc.CommandAsync("GET_SELECTED_VOICE_CHANNEL", ct: ct);
+            var currentId = channel.ValueKind == JsonValueKind.Object
+                            && channel.TryGetProperty("id", out var cid)
+                            && cid.ValueKind == JsonValueKind.String
+                ? cid.GetString()
+                : null;
+
+            await BindChannelAsync(ipc, currentId, ct);
+        }
+        finally
+        {
+            _channelGate.Release();
+        }
+    }
+
+    /// <summary>Dispara uma sincronizacao a partir do loop de leitura, sem bloquea-lo.</summary>
+    private void RequestChannelSync()
+    {
+        var ct = _lifetime?.Token ?? default;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await SyncChannelAsync(ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+            }
+            catch (Exception ex)
+            {
+                // Sem isto a falha sumia numa task nao observada e o widget ficava no
+                // estado da troca pela metade.
+                Log?.Invoke($"troca de canal falhou: {ex.Message}");
+            }
+        }, CancellationToken.None);
+    }
+
+    private async Task BindChannelAsync(DiscordIpcClient ipc, string? channelId, CancellationToken ct)
     {
         if (_channelId == channelId) return;
-        if (_ipc is not { } ipc) return;
 
         if (_channelId is not null)
         {
@@ -246,9 +304,20 @@ public sealed class VoiceSessionService : IAsyncDisposable
             return;
         }
 
-        foreach (var evt in ChannelEvents)
+        try
         {
-            await ipc.SubscribeAsync(evt, ChannelArgs(channelId), ct);
+            foreach (var evt in ChannelEvents)
+            {
+                await ipc.SubscribeAsync(evt, ChannelArgs(channelId), ct);
+            }
+        }
+        catch
+        {
+            // Inscricao pela metade: esquecer o canal para a proxima sincronizacao refazer tudo.
+            _channelId = null;
+            SetState(VoiceConnectionState.Connected);
+            ParticipantsChanged?.Invoke([]);
+            throw;
         }
 
         var channel = await ipc.CommandAsync("GET_SELECTED_VOICE_CHANNEL", ct: ct);
@@ -294,6 +363,12 @@ public sealed class VoiceSessionService : IAsyncDisposable
             case "VOICE_STATE_DELETE":
             {
                 if (VoiceParticipant.From(data) is not { } p) return;
+
+                // Eu sai do canal que o widget acompanha. Normalmente vem junto um
+                // VOICE_CHANNEL_SELECT, mas ao ser movido por outra pessoa ele pode
+                // atrasar ou nao vir; conferir com o Discord cobre os dois casos.
+                if (p.UserId == SelfUserId) RequestChannelSync();
+
                 lock (_gate)
                 {
                     _participants.Remove(p.UserId);
@@ -305,13 +380,8 @@ public sealed class VoiceSessionService : IAsyncDisposable
             }
 
             case "VOICE_CHANNEL_SELECT":
-            {
-                var channelId = data.TryGetProperty("channel_id", out var c) && c.ValueKind == JsonValueKind.String
-                    ? c.GetString()
-                    : null;
-                _ = BindChannelAsync(channelId, _lifetime?.Token ?? default);
+                RequestChannelSync();
                 return;
-            }
 
             case "VOICE_SETTINGS_UPDATE":
                 RaiseSelfSettings(data);

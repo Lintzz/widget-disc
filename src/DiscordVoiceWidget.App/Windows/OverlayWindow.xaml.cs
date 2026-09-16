@@ -32,12 +32,26 @@ namespace DiscordVoiceWidget.App;
 public partial class OverlayWindow : Window
 {
     private static readonly TimeSpan SafetyInterval = TimeSpan.FromSeconds(6);
+
+    /// <summary>Com um jogo em tela cheia na frente, a rede de seguranca fica mais curta.</summary>
+    private static readonly TimeSpan FullscreenSafetyInterval = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// Reafirmacoes extras logo depois da troca de primeiro plano. O jogo costuma se
+    /// colocar como topmost alguns instantes depois de ganhar o foco (terminando de
+    /// criar a swapchain); reafirmar so no evento perdia essa corrida e o overlay
+    /// ficava por tras.
+    /// </summary>
+    private static readonly TimeSpan FollowUpInterval = TimeSpan.FromMilliseconds(250);
+    private const int FollowUpCount = 8;
     private static readonly TimeSpan PeekDuration = TimeSpan.FromSeconds(2.5);
     private static readonly Duration FadeDuration = TimeSpan.FromMilliseconds(200);
 
     private readonly VoiceWidgetViewModel _viewModel;
     private readonly DispatcherTimer _safetyTimer;
     private readonly DispatcherTimer _peekTimer;
+    private readonly DispatcherTimer _followUpTimer;
+    private int _followUpsLeft;
 
     // Campo: o delegate precisa viver enquanto o hook existir.
     private readonly WinEventProc _foregroundCallback;
@@ -70,6 +84,13 @@ public partial class OverlayWindow : Window
 
         _safetyTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = SafetyInterval };
         _safetyTimer.Tick += (_, _) => ReassertTopmost();
+
+        _followUpTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = FollowUpInterval };
+        _followUpTimer.Tick += (_, _) =>
+        {
+            if (--_followUpsLeft <= 0) _followUpTimer.Stop();
+            ReassertTopmost();
+        };
 
         _peekTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = PeekDuration };
         _peekTimer.Tick += (_, _) =>
@@ -176,6 +197,7 @@ public partial class OverlayWindow : Window
         ApplyPlacement();
         UpdateVisibility();
         WindowHelper.SetTopmost(this);
+        BurstReassert();
     }
 
     // -----------------------------------------------------------------------
@@ -240,6 +262,7 @@ public partial class OverlayWindow : Window
         }
 
         _safetyTimer.Stop();
+        _followUpTimer.Stop();
     }
 
     private void OnForegroundChanged(
@@ -251,13 +274,29 @@ public partial class OverlayWindow : Window
         uint thread,
         uint time)
     {
-        if (_active) ReassertTopmost();
+        if (!_active) return;
+
+        ReassertTopmost();
+        BurstReassert();
+    }
+
+    private void BurstReassert()
+    {
+        _followUpsLeft = FollowUpCount;
+        _followUpTimer.Stop();
+        _followUpTimer.Start();
     }
 
     /// <summary>O jogo ao ganhar foco pode subir por cima: reafirma, mas so se estiver na tela.</summary>
     private void ReassertTopmost()
     {
-        if (_shown) WindowHelper.SetTopmost(this);
+        if (!_shown) return;
+
+        WindowHelper.SetTopmost(this);
+
+        // Jogo em tela cheia na frente: checa a cada segundo em vez de a cada 6 s.
+        var interval = WindowHelper.IsForegroundFullscreen() ? FullscreenSafetyInterval : SafetyInterval;
+        if (_safetyTimer.IsEnabled && _safetyTimer.Interval != interval) _safetyTimer.Interval = interval;
     }
 
     private void UpdateVisibility()
@@ -379,6 +418,7 @@ public partial class OverlayWindow : Window
     {
         StopTracking();
         _peekTimer.Stop();
+        _followUpTimer.Stop();
         _source?.RemoveHook(WndProc);
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
     }
