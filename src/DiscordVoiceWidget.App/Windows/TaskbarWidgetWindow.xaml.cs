@@ -11,6 +11,9 @@ namespace DiscordVoiceWidget.App;
 /// <summary>O que o menu de contexto do widget mostra sobre o overlay.</summary>
 internal readonly record struct OverlayMenuState(bool Enabled, bool Moving, string ToggleHotkey, string MoveHotkey);
 
+/// <summary>O que o menu precisa saber do Discord ao abrir.</summary>
+internal readonly record struct DiscordMenuState(bool CanControlVoice, bool IsRunning);
+
 /// <summary>
 /// Janela do widget na barra de tarefas, embutida DENTRO da barra.
 ///
@@ -93,9 +96,15 @@ public partial class TaskbarWidgetWindow : Window
     public event EventHandler? SettingsRequested;
     public event EventHandler? OverlayToggleRequested;
     public event EventHandler? OverlayMoveRequested;
+    public event EventHandler? MuteToggleRequested;
+    public event EventHandler? DeafenToggleRequested;
+    public event EventHandler? QuitDiscordRequested;
 
     /// <summary>Estado atual do overlay, lido pelo menu de contexto ao abrir.</summary>
     internal Func<OverlayMenuState>? OverlayStateProvider { get; set; }
+
+    /// <summary>Conexao com o Discord, lida pelo menu de contexto ao abrir.</summary>
+    internal Func<DiscordMenuState>? DiscordStateProvider { get; set; }
 
     /// <summary>
     /// Mudou entre "trabalhando" (em call, ou configurado para ficar sempre visivel) e
@@ -321,12 +330,25 @@ public partial class TaskbarWidgetWindow : Window
 
     private void OnMenuOpened(object sender, RoutedEventArgs e)
     {
+        // Itens achados pelo Tag: o menu fica no escopo de nomes da view, sem x:Name.
+        var items = ((ContextMenu)sender).Items.OfType<MenuItem>().ToList();
+
+        if (DiscordStateProvider?.Invoke() is { } discord)
+        {
+            var muteItem = items.First(i => Equals(i.Tag, "Mute"));
+            var deafenItem = items.First(i => Equals(i.Tag, "Deafen"));
+
+            // Ensurdecido o Discord tambem corta o microfone, mas informa mute=false.
+            muteItem.IsChecked = _viewModel.SelfSilenced;
+            muteItem.IsEnabled = discord.CanControlVoice;
+            deafenItem.IsChecked = _viewModel.SelfDeafened;
+            deafenItem.IsEnabled = discord.CanControlVoice;
+            items.First(i => Equals(i.Tag, "QuitDiscord")).IsEnabled = discord.IsRunning;
+        }
+
         // O estado do overlay muda por atalho, pelas configuracoes e pelo proprio
         // overlay; ler na abertura dispensa manter o menu sincronizado o tempo todo.
         if (OverlayStateProvider?.Invoke() is not { } state) return;
-
-        // Itens achados pelo Tag: o menu fica no escopo de nomes da view, sem x:Name.
-        var items = ((ContextMenu)sender).Items.OfType<MenuItem>().ToList();
         var overlayItem = items.First(i => Equals(i.Tag, "Overlay"));
         var moveItem = items.First(i => Equals(i.Tag, "MoveOverlay"));
 
@@ -337,6 +359,15 @@ public partial class TaskbarWidgetWindow : Window
         moveItem.Header = state.Moving ? "Fixar overlay aqui" : "Mover overlay";
         moveItem.InputGestureText = state.MoveHotkey;
     }
+
+    private void OnMuteClick(object sender, RoutedEventArgs e)
+        => MuteToggleRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnDeafenClick(object sender, RoutedEventArgs e)
+        => DeafenToggleRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnQuitDiscordClick(object sender, RoutedEventArgs e)
+        => QuitDiscordRequested?.Invoke(this, EventArgs.Empty);
 
     private void OnOverlayToggleClick(object sender, RoutedEventArgs e)
         => OverlayToggleRequested?.Invoke(this, EventArgs.Empty);

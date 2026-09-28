@@ -29,7 +29,7 @@
 - **Quem está mutado** ganha um selo vermelho no avatar.
 - **Um ou dois monitores**: na barra secundária (que continua visível durante jogos em tela cheia), na principal ou nas duas.
 - **Overlay sobre os jogos** opcional, com atalhos globais e cliques que atravessam a janela.
-- **Menu no próprio widget**: botão direito para overlay, configurações, reconectar e sair.
+- **Menu no próprio widget**: botão direito para mutar, ensurdecer, fechar o Discord, ligar o overlay e abrir as configurações.
 - **Leve**: cerca de 25 MB de memória, nada rodando fora de call e nenhum uso de GPU.
 
 ## Requisitos
@@ -82,9 +82,23 @@ use **Configurações → Trocar app do Discord**.
 |---|---|
 | Alguém falando, seu microfone aberto | ![Anel verde em quem fala e microfone verde](docs/images/taskbar.png) |
 | Seu microfone mutado, participantes mutados | ![Microfone vermelho e selos vermelhos nos avatares mutados](docs/images/taskbar-muted.png) |
+| Você ensurdecido | ![Microfone e fone de ouvido cortados em vermelho](docs/images/taskbar-deafened.png) |
 
-Passe o mouse sobre um avatar para ver o nome da pessoa. Clique com o botão direito no
-widget para ligar o overlay, abrir as configurações, reconectar ou sair.
+Passe o mouse sobre um avatar para ver o nome da pessoa.
+
+### Menu do widget
+
+Clique com o botão direito no widget para mutar o microfone, ensurdecer ou fechar o
+Discord sem abrir o ícone dele na bandeja. Como no Discord, ensurdecer também corta o
+microfone, e desmutar estando ensurdecido devolve o som. O mesmo menu liga o overlay e
+abre as configurações.
+
+<div align="center">
+<img src="docs/images/menu.png" width="386" alt="Menu do botão direito: mutar microfone, ensurdecer, fechar o Discord, overlay, configurações, reconectar e sair" />
+</div>
+
+> **Atualizando da 1.0.3 ou anterior:** mutar e ensurdecer pedem uma permissão nova ao
+> Discord, então um pedido de autorização abre nele uma vez. Clique em **Autorizar**.
 
 Fora de call o widget se esconde (configurável) e não há ícone na bandeja. Para chegar às
 configurações sem estar em call, abra o **Discord Voice Widget** de novo pelo Menu Iniciar:
@@ -162,6 +176,7 @@ dotnet run --project src/DiscordVoiceWidget.App
 # modo demonstração: call fictícia, sem Discord e sem gravar configurações
 dotnet run --project src/DiscordVoiceWidget.App -- --demo
 dotnet run --project src/DiscordVoiceWidget.App -- --demo-muted
+dotnet run --project src/DiscordVoiceWidget.App -- --demo-deafened
 
 # harness de console da biblioteca de voz (útil para isolar problemas do RPC)
 dotnet run --project tools/RpcSpike

@@ -17,7 +17,14 @@ próprio nem nada injetado no Discord.
 4. Com `AUTHENTICATE`, o widget assina `VOICE_CHANNEL_SELECT` e `VOICE_SETTINGS_UPDATE` e,
    dentro de uma call, `VOICE_STATE_*` e `SPEAKING_START`/`SPEAKING_STOP` do canal.
 
-Os escopos usados são `rpc`, `rpc.voice.read` e `identify`.
+Os escopos usados são `rpc`, `rpc.voice.read`, `rpc.voice.write` e `identify`. O
+`rpc.voice.write` libera o `SET_VOICE_SETTINGS`, usado pelo menu para mutar e ensurdecer.
+Um token salvo sem algum desses escopos (de antes da 1.0.4) é descartado: como o Discord
+recusa `AUTHORIZE` num pipe já autenticado (`4002: Already authenticated`), a sessão cai e
+a próxima autoriza num pipe novo.
+
+**Fechar o Discord** não passa pelo RPC, que não tem comando para isso: o widget encerra
+os processos `Discord`, `DiscordPTB` e `DiscordCanary` (`DiscordProcess`).
 
 ### Armadilhas do redirect no fluxo RPC
 
@@ -30,7 +37,7 @@ Dois comportamentos que a documentação oficial não menciona e que custaram du
 - **Mas o app precisa ter pelo menos um redirect cadastrado.** Sem nenhum, o mesmo
   `AUTHORIZE` falha com o erro oposto: `invalid_request: Missing "redirect_uri" in request`.
 
-> **Por que um app próprio é obrigatório:** os escopos `rpc` e `rpc.voice.read` — necessários
+> **Por que um app próprio é obrigatório:** os escopos `rpc`, `rpc.voice.read` e `rpc.voice.write` — necessários
 > para os eventos `SPEAKING_START` / `SPEAKING_STOP` — só são liberados para o **dono do app**
 > e para até 50 contas na lista de *testers*. Como você é o dono, funciona sem pedir nada ao
 > Discord. Isso também significa que este widget **não é distribuível publicamente** sem

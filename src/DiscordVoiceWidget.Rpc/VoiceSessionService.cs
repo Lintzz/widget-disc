@@ -13,7 +13,12 @@ namespace DiscordVoiceWidget.Rpc;
 /// </summary>
 public sealed class VoiceSessionService : IAsyncDisposable
 {
-    private static readonly string[] Scopes = ["rpc", "rpc.voice.read", "identify"];
+    /// <summary>
+    /// rpc.voice.write entrou na 1.0.4, para mutar e ensurdecer pelo menu. Tokens salvos
+    /// antes dela nao o tem: o AUTHENTICATE passa, mas o SET_VOICE_SETTINGS seria
+    /// recusado, entao um token sem algum destes escopos pede autorizacao de novo.
+    /// </summary>
+    private static readonly string[] Scopes = ["rpc", "rpc.voice.read", "rpc.voice.write", "identify"];
 
     private static readonly string[] ChannelEvents =
     [
@@ -182,15 +187,26 @@ public sealed class VoiceSessionService : IAsyncDisposable
 
         if (stored is not null)
         {
+            JsonElement? auth = null;
             try
             {
-                await ipc.CommandAsync("AUTHENTICATE", AccessTokenArgs(stored.AccessToken), ct: ct);
-                return;
+                auth = await ipc.CommandAsync("AUTHENTICATE", AccessTokenArgs(stored.AccessToken), ct: ct);
             }
             catch (DiscordRpcException ex)
             {
                 Log?.Invoke($"token recusado ({ex.Message}) - autorizando de novo");
                 OAuthTokenStore.Clear();
+            }
+
+            if (auth is { } granted)
+            {
+                if (HasAllScopes(granted)) return;
+
+                // Esta conexao ja esta autenticada e o Discord recusa um AUTHORIZE nela
+                // ("4002: Already authenticated"). Sem o token, a proxima sessao autoriza
+                // num pipe novo.
+                OAuthTokenStore.Clear();
+                throw new DiscordRpcException("token sem todos os escopos - autorizando de novo");
             }
         }
 
@@ -219,11 +235,45 @@ public sealed class VoiceSessionService : IAsyncDisposable
         await ipc.CommandAsync("AUTHENTICATE", AccessTokenArgs(token.AccessToken), ct: ct);
     }
 
+    /// <summary>Resposta do AUTHENTICATE sem a lista de escopos vale como completa.</summary>
+    private static bool HasAllScopes(JsonElement auth)
+    {
+        if (!auth.TryGetProperty("scopes", out var scopes) || scopes.ValueKind != JsonValueKind.Array) return true;
+
+        var granted = scopes.EnumerateArray().Select(s => s.GetString()).ToHashSet();
+        return Scopes.All(granted.Contains);
+    }
+
     private static Action<Utf8JsonWriter> AccessTokenArgs(string accessToken)
         => w => w.WriteString("access_token", accessToken);
 
     private static Action<Utf8JsonWriter> ChannelArgs(string channelId)
         => w => w.WriteString("channel_id", channelId);
+
+    // -----------------------------------------------------------------------
+    // Meu microfone e fone
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Muta/desmuta ou ensurdece/desensurdece a propria conta. O estado novo volta pelo
+    /// VOICE_SETTINGS_UPDATE, como quando a mudanca e feita no proprio Discord.
+    /// </summary>
+    public async Task SetSelfVoiceAsync(bool? mute = null, bool? deaf = null, CancellationToken ct = default)
+    {
+        if (_ipc is not { } ipc || State is VoiceConnectionState.Disconnected or VoiceConnectionState.Connecting)
+        {
+            throw new InvalidOperationException("Sem conexao com o Discord.");
+        }
+
+        await ipc.CommandAsync(
+            "SET_VOICE_SETTINGS",
+            w =>
+            {
+                if (mute is { } m) w.WriteBoolean("mute", m);
+                if (deaf is { } d) w.WriteBoolean("deaf", d);
+            },
+            ct: ct);
+    }
 
     // -----------------------------------------------------------------------
     // Canal de voz

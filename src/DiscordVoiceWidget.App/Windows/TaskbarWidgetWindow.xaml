@@ -13,17 +13,120 @@
         UseLayoutRounding="True"
         SnapsToDevicePixels="True">
 
-    <local:VoiceWidgetView x:Name="View" TaskbarStyle="True">
-        <local:VoiceWidgetView.ContextMenu>
-            <ContextMenu Opened="OnMenuOpened">
-                <MenuItem Tag="Overlay" Header="Overlay nos jogos" Click="OnOverlayToggleClick" />
-                <MenuItem Tag="MoveOverlay" Header="Mover overlay" Click="OnOverlayMoveClick" />
-                <Separator />
-                <MenuItem Header="Configurações..." Click="OnSettingsClick" />
-                <MenuItem Header="Reconectar" Click="OnReconnectClick" />
-                <Separator />
-                <MenuItem Header="Sair" Click="OnExitClick" />
-            </ContextMenu>
-        </local:VoiceWidgetView.ContextMenu>
-    </local:VoiceWidgetView>
+    <Window.Resources>
+        <!-- Menu escuro proprio, no lugar do menu claro padrao do Windows: esta janela
+             nao carrega o tema Fluent (so a tela de configuracoes carrega, e ele pesa
+             alguns MB), entao o visual vem destes estilos. -->
+        <ContextMenu x:Key="WidgetMenu" Opened="OnMenuOpened">
+            <ContextMenu.Resources>
+                <SolidColorBrush x:Key="MenuText" Color="#E8E9EB" />
+                <SolidColorBrush x:Key="MenuSubtleText" Color="#9A9EA5" />
+                <SolidColorBrush x:Key="MenuLine" Color="#3A3C42" />
+                <SolidColorBrush x:Key="MenuHover" Color="#383A40" />
+                <SolidColorBrush x:Key="MenuDanger" Color="#F23F43" />
+
+                <Style TargetType="ContextMenu">
+                    <Setter Property="SnapsToDevicePixels" Value="True" />
+                    <Setter Property="HasDropShadow" Value="False" />
+                    <Setter Property="FontSize" Value="13" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ContextMenu">
+                                <!-- Margem transparente: espaco para a sombra caber no popup. -->
+                                <Border Margin="0,0,10,10">
+                                    <Border Background="#232428"
+                                            BorderBrush="{StaticResource MenuLine}"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="4"
+                                            MinWidth="210">
+                                        <Border.Effect>
+                                            <DropShadowEffect BlurRadius="10" ShadowDepth="3" Opacity="0.45" Direction="315" />
+                                        </Border.Effect>
+                                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
+                                    </Border>
+                                </Border>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+
+                <Style TargetType="MenuItem">
+                    <Setter Property="Foreground" Value="{StaticResource MenuText}" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="MenuItem">
+                                <Border x:Name="Bg" Background="Transparent" CornerRadius="4" Padding="8,0,12,0" Height="32">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="24" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Path x:Name="Check"
+                                              Data="M1,5 L4.5,8.5 L11,1.5"
+                                              Stroke="#5865F2"
+                                              StrokeThickness="2"
+                                              StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round"
+                                              StrokeLineJoin="Round"
+                                              VerticalAlignment="Center"
+                                              Visibility="Collapsed" />
+                                        <ContentPresenter Grid.Column="1"
+                                                          ContentSource="Header"
+                                                          RecognizesAccessKey="True"
+                                                          VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{TemplateBinding InputGestureText}"
+                                                   Foreground="{StaticResource MenuSubtleText}"
+                                                   FontSize="12"
+                                                   Margin="24,0,0,0"
+                                                   VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="Check" Property="Visibility" Value="Visible" />
+                                    </Trigger>
+                                    <Trigger Property="IsHighlighted" Value="True">
+                                        <Setter TargetName="Bg" Property="Background" Value="{StaticResource MenuHover}" />
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Opacity" Value="0.4" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+
+                <!-- Dentro de um menu o Separator usa esta chave, nao o estilo implicito. -->
+                <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="Separator">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Separator">
+                                <Rectangle Height="1" Margin="4,4" Fill="{StaticResource MenuLine}" />
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ContextMenu.Resources>
+
+            <MenuItem Tag="Mute" Header="Mutar microfone" Click="OnMuteClick" />
+            <MenuItem Tag="Deafen" Header="Ensurdecer" Click="OnDeafenClick" />
+            <MenuItem Tag="QuitDiscord" Header="Fechar o Discord" Click="OnQuitDiscordClick"
+                      Foreground="{StaticResource MenuDanger}" />
+            <Separator />
+            <MenuItem Tag="Overlay" Header="Overlay nos jogos" Click="OnOverlayToggleClick" />
+            <MenuItem Tag="MoveOverlay" Header="Mover overlay" Click="OnOverlayMoveClick" />
+            <Separator />
+            <MenuItem Header="Configurações..." Click="OnSettingsClick" />
+            <MenuItem Header="Reconectar" Click="OnReconnectClick" />
+            <Separator />
+            <MenuItem Header="Sair" Click="OnExitClick" />
+        </ContextMenu>
+    </Window.Resources>
+
+    <!-- Fora da view: dentro dela os nomes dos templates colidiam com o escopo de nomes do UserControl. -->
+    <local:VoiceWidgetView x:Name="View" TaskbarStyle="True" ContextMenu="{StaticResource WidgetMenu}" />
 </Window>

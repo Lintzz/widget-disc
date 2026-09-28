@@ -274,6 +274,52 @@ public partial class App : Application
             MessageBox.Show(text, $"Discord Voice Widget · {title}", MessageBoxButton.OK, MessageBoxImage.Information));
     }
 
+    private DiscordMenuState CurrentDiscordMenuState() => new(
+        CanControlVoice: _demoMode || _state is VoiceConnectionState.Connected or VoiceConnectionState.InCall,
+        IsRunning: _demoMode || DiscordProcess.IsRunning());
+
+    /// <summary>
+    /// Como o botao de microfone do Discord: ensurdecido, desmutar tambem devolve o som;
+    /// senao, so alterna o mute.
+    /// </summary>
+    private Task ToggleMuteAsync() => _viewModel!.SelfDeafened
+        ? SetSelfVoiceAsync(mute: false, deaf: false)
+        : SetSelfVoiceAsync(mute: !_viewModel.SelfMuted);
+
+    private async Task SetSelfVoiceAsync(bool? mute = null, bool? deaf = null)
+    {
+        if (_demoMode)
+        {
+            // Sem Discord: aplica direto, para testar o menu e o visual.
+            if (mute is { } m) _viewModel!.SelfMuted = m;
+            if (deaf is { } d) _viewModel!.SelfDeafened = d;
+            return;
+        }
+
+        if (_session is not { } session) return;
+
+        try
+        {
+            await session.SetSelfVoiceAsync(mute, deaf);
+        }
+        catch (Exception ex)
+        {
+            FileLog.Write($"mudar voz falhou: {ex.Message}");
+            Notify("Não foi possível mudar", $"O Discord recusou o pedido: {ex.Message}");
+        }
+    }
+
+    private void QuitDiscord()
+    {
+        if (_demoMode)
+        {
+            FileLog.Write("fechar Discord ignorado (modo demonstracao)");
+            return;
+        }
+
+        FileLog.Write($"fechar Discord pedido pelo usuario: {DiscordProcess.Quit()} processo(s) encerrado(s)");
+    }
+
     private async Task RestartSessionAsync()
     {
         if (_demoMode) return;
@@ -674,6 +720,10 @@ public partial class App : Application
         window.OverlayToggleRequested += (_, _) => ToggleOverlay();
         window.OverlayMoveRequested += (_, _) => ToggleOverlayMove();
         window.OverlayStateProvider = CurrentOverlayMenuState;
+        window.MuteToggleRequested += async (_, _) => await ToggleMuteAsync();
+        window.DeafenToggleRequested += async (_, _) => await SetSelfVoiceAsync(deaf: !_viewModel!.SelfDeafened);
+        window.QuitDiscordRequested += (_, _) => QuitDiscord();
+        window.DiscordStateProvider = CurrentDiscordMenuState;
         window.Closed += (_, _) => OnWidgetWindowClosed(window);
 
         // Saiu da call: a lista de participantes e os avatares ja nao estao na tela.
