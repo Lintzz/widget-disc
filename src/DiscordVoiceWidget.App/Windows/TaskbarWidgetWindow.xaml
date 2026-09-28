@@ -13,7 +13,7 @@
         UseLayoutRounding="True"
         SnapsToDevicePixels="True">
 
-    <local:VoiceWidgetView x:Name="View">
+    <local:VoiceWidgetView x:Name="View" TaskbarStyle="True">
         <local:VoiceWidgetView.ContextMenu>
             <ContextMenu Opened="OnMenuOpened">
                 <MenuItem Tag="Overlay" Header="Overlay nos jogos" Click="OnOverlayToggleClick" />
