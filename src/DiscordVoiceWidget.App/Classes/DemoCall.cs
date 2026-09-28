@@ -13,13 +13,13 @@ namespace DiscordVoiceWidget.App;
 /// </summary>
 internal sealed class DemoCall : IDisposable
 {
-    private static readonly (string Id, string Name, Color From, Color To, bool Silenced)[] People =
+    private static readonly (string Id, string Name, Color From, Color To, bool Silenced, bool Deafened)[] People =
     [
-        ("self", "Você", Color.FromRgb(0xF7, 0x97, 0x1E), Color.FromRgb(0xE2, 0x4A, 0x6B), false),
-        ("ana", "Ana", Color.FromRgb(0x2B, 0xC0, 0xA8), Color.FromRgb(0x1F, 0x6F, 0xD1), false),
-        ("bruno", "Bruno", Color.FromRgb(0x9B, 0x6B, 0xF2), Color.FromRgb(0x4C, 0x3B, 0xC9), false),
-        ("carla", "Carla", Color.FromRgb(0xF2, 0xC9, 0x4C), Color.FromRgb(0xE0, 0x7B, 0x28), true),
-        ("davi", "Davi", Color.FromRgb(0x5F, 0xC8, 0x5A), Color.FromRgb(0x23, 0x8A, 0x5B), false),
+        ("self", "Você", Color.FromRgb(0xF7, 0x97, 0x1E), Color.FromRgb(0xE2, 0x4A, 0x6B), false, false),
+        ("ana", "Ana", Color.FromRgb(0x2B, 0xC0, 0xA8), Color.FromRgb(0x1F, 0x6F, 0xD1), false, false),
+        ("bruno", "Bruno", Color.FromRgb(0x9B, 0x6B, 0xF2), Color.FromRgb(0x4C, 0x3B, 0xC9), false, false),
+        ("carla", "Carla", Color.FromRgb(0xF2, 0xC9, 0x4C), Color.FromRgb(0xE0, 0x7B, 0x28), true, false),
+        ("davi", "Davi", Color.FromRgb(0x5F, 0xC8, 0x5A), Color.FromRgb(0x23, 0x8A, 0x5B), true, true),
     ];
 
     /// <summary>Quem fala em cada passo. Fixo, para os prints e o GIF sairem iguais sempre.</summary>
@@ -45,26 +45,27 @@ internal sealed class DemoCall : IDisposable
             {
                 DisplayName = person.Name,
                 IsSilenced = person.Silenced || (person.Id == "self" && selfMuted),
+                IsDeafened = person.Deafened || (person.Id == "self" && selfDeafened),
                 Avatar = RenderAvatar(person.Name, person.From, person.To),
             });
         }
 
-        // Mutado, "voce" nao fala: o anel verde ficaria em contradicao com o icone vermelho.
-        _timer.Tick += (_, _) => Advance(skipSelf: selfMuted);
+        _timer.Tick += (_, _) => Advance();
     }
 
     public void Start()
     {
-        Advance(skipSelf: _viewModel.SelfMuted);
+        Advance();
         _timer.Start();
     }
 
-    private void Advance(bool skipSelf)
+    // Silenciado nao fala: o anel verde ficaria em contradicao com o selo vermelho.
+    private void Advance()
     {
         var speaking = Script[_step++ % Script.Length];
         foreach (var participant in _viewModel.Participants)
         {
-            participant.IsSpeaking = speaking.Contains(participant.UserId) && !(skipSelf && participant.IsSelf);
+            participant.IsSpeaking = speaking.Contains(participant.UserId) && !participant.IsSilenced;
         }
     }
 

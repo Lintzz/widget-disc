@@ -26,6 +26,7 @@ public sealed class ParticipantViewModel(string userId, bool isSelf) : Observabl
 {
     private ImageSource? _avatar;
     private string _displayName = string.Empty;
+    private bool _isDeafened;
     private bool _isSilenced;
     private bool _isSpeaking;
 
@@ -68,6 +69,13 @@ public sealed class ParticipantViewModel(string userId, bool isSelf) : Observabl
     {
         get => _isSilenced;
         set => Set(ref _isSilenced, value);
+    }
+
+    /// <summary>Ensurdecido (implica silenciado): o selo mostra o fone cortado em vez do microfone.</summary>
+    public bool IsDeafened
+    {
+        get => _isDeafened;
+        set => Set(ref _isDeafened, value);
     }
 
     public string AvatarUrl { get; set; } = string.Empty;
@@ -190,6 +198,7 @@ public sealed class VoiceWidgetViewModel : ObservableBase
 
             existing.DisplayName = p.DisplayName;
             existing.IsSilenced = p.IsSilenced;
+            existing.IsDeafened = p.IsDeafened;
 
             if (existing.AvatarUrl != p.AvatarUrl)
             {

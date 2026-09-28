@@ -29,9 +29,12 @@ public sealed record VoiceParticipant(
     string AvatarUrl,
     bool SelfMuted,
     bool SelfDeafened,
-    bool ServerMuted)
+    bool ServerMuted,
+    bool ServerDeafened)
 {
-    public bool IsSilenced => SelfMuted || SelfDeafened || ServerMuted;
+    public bool IsDeafened => SelfDeafened || ServerDeafened;
+
+    public bool IsSilenced => SelfMuted || ServerMuted || IsDeafened;
 
     /// <summary>
     /// Le tanto os itens de GET_SELECTED_VOICE_CHANNEL.voice_states[] quanto o
@@ -54,7 +57,8 @@ public sealed record VoiceParticipant(
             AvatarUrlFor(userId, Str(user, "avatar")),
             Bool(voice, "self_mute"),
             Bool(voice, "self_deaf"),
-            Bool(voice, "mute"));
+            Bool(voice, "mute"),
+            Bool(voice, "deaf"));
     }
 
     public static string AvatarUrlFor(string userId, string? avatarHash, int size = 64)

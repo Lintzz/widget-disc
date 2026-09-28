@@ -26,7 +26,7 @@
 - **Avatares da call na barra de tarefas**, embutidos na própria barra, ao lado do relógio.
 - **Anel verde em quem está falando**, com um pequeno atraso ajustável para não piscar nas pausas da fala.
 - **Seu microfone em um relance**: ícone verde quando aberto, vermelho quando mutado ou ensurdecido.
-- **Quem está mutado** ganha um selo vermelho no avatar.
+- **Quem está mutado ou ensurdecido** ganha um selo vermelho no avatar, com o microfone ou o fone cortado.
 - **Um ou dois monitores**: na barra secundária (que continua visível durante jogos em tela cheia), na principal ou nas duas.
 - **Overlay sobre os jogos** opcional, com atalhos globais e cliques que atravessam a janela.
 - **Menu no próprio widget**: botão direito para mutar, ensurdecer, fechar o Discord, ligar o overlay e abrir as configurações.
@@ -81,7 +81,7 @@ use **Configurações → Trocar app do Discord**.
 | Estado | Como aparece |
 |---|---|
 | Alguém falando, seu microfone aberto | ![Anel verde em quem fala e microfone verde](docs/images/taskbar.png) |
-| Seu microfone mutado, participantes mutados | ![Microfone vermelho e selos vermelhos nos avatares mutados](docs/images/taskbar-muted.png) |
+| Seu microfone mutado; a Carla mutada e o Davi ensurdecido | ![Microfone vermelho; selo de microfone cortado na Carla e de fone cortado no Davi](docs/images/taskbar-muted.png) |
 | Você ensurdecido | ![Microfone e fone de ouvido cortados em vermelho](docs/images/taskbar-deafened.png) |
 
 Passe o mouse sobre um avatar para ver o nome da pessoa.
