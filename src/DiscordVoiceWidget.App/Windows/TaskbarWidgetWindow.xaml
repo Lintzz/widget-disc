@@ -112,6 +112,8 @@
                 </Style>
             </ContextMenu.Resources>
 
+            <MenuItem Header="Abrir o Discord" InputGestureText="Clique duplo" Click="OnOpenDiscordClick" />
+            <Separator />
             <MenuItem Tag="Mute" Header="Mutar microfone" Click="OnMuteClick" />
             <MenuItem Tag="Deafen" Header="Ensurdecer" Click="OnDeafenClick" />
             <MenuItem Tag="QuitDiscord" Header="Fechar o Discord" Click="OnQuitDiscordClick"
@@ -128,5 +130,6 @@
     </Window.Resources>
 
     <!-- Fora da view: dentro dela os nomes dos templates colidiam com o escopo de nomes do UserControl. -->
-    <local:VoiceWidgetView x:Name="View" TaskbarStyle="True" ContextMenu="{StaticResource WidgetMenu}" />
+    <local:VoiceWidgetView x:Name="View" TaskbarStyle="True" ContextMenu="{StaticResource WidgetMenu}"
+                           MouseLeftButtonDown="OnViewMouseLeftButtonDown" />
 </Window>

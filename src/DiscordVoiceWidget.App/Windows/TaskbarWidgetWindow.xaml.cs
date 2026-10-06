@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
@@ -100,6 +101,9 @@ public partial class TaskbarWidgetWindow : Window
     public event EventHandler? DeafenToggleRequested;
     public event EventHandler? QuitDiscordRequested;
 
+    /// <summary>Clique duplo no widget ou "Abrir o Discord" no menu.</summary>
+    public event EventHandler? OpenDiscordRequested;
+
     /// <summary>Estado atual do overlay, lido pelo menu de contexto ao abrir.</summary>
     internal Func<OverlayMenuState>? OverlayStateProvider { get; set; }
 
@@ -142,6 +146,9 @@ public partial class TaskbarWidgetWindow : Window
     internal TaskbarInfo? CurrentTaskbar { get; private set; }
 
     private IntPtr Handle => _source?.Handle ?? IntPtr.Zero;
+
+    /// <summary>Monitor da barra em que o widget esta: e onde o Discord deve abrir.</summary>
+    internal IntPtr Monitor => MonitorFromWindow(Handle, MONITOR_DEFAULTTONEAREST);
 
     // -----------------------------------------------------------------------
     // Ciclo de vida
@@ -359,6 +366,17 @@ public partial class TaskbarWidgetWindow : Window
         moveItem.Header = state.Moving ? "Fixar overlay aqui" : "Mover overlay";
         moveItem.InputGestureText = state.MoveHotkey;
     }
+
+    private void OnViewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount != 2) return;
+
+        e.Handled = true;
+        OpenDiscordRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnOpenDiscordClick(object sender, RoutedEventArgs e)
+        => OpenDiscordRequested?.Invoke(this, EventArgs.Empty);
 
     private void OnMuteClick(object sender, RoutedEventArgs e)
         => MuteToggleRequested?.Invoke(this, EventArgs.Empty);

@@ -30,6 +30,7 @@
 - **Um ou dois monitores**: na barra secundária (que continua visível durante jogos em tela cheia), na principal ou nas duas.
 - **Overlay sobre os jogos** opcional, com atalhos globais e cliques que atravessam a janela.
 - **Menu no próprio widget**: botão direito para mutar, ensurdecer, fechar o Discord, ligar o overlay e abrir as configurações.
+- **Clique duplo abre o Discord** na tela do widget clicado, mesmo fechado, escondido na bandeja ou minimizado.
 - **Leve**: cerca de 25 MB de memória, nada rodando fora de call e nenhum uso de GPU.
 
 ## Requisitos
@@ -92,6 +93,11 @@ Clique com o botão direito no widget para mutar o microfone, ensurdecer ou fech
 Discord sem abrir o ícone dele na bandeja. Como no Discord, ensurdecer também corta o
 microfone, e desmutar estando ensurdecido devolve o som. O mesmo menu liga o overlay e
 abre as configurações.
+
+Clique duas vezes no widget para abrir o Discord: fechado, escondido na bandeja ou
+minimizado, ele aparece na tela do widget em que você clicou (com um widget em cada
+tela, cada um abre na sua). Com o Discord fechado e o widget visível fora de call, ele
+mostra "Discord fechado".
 
 <div align="center">
 <img src="docs/images/menu.png" width="386" alt="Menu do botão direito: mutar microfone, ensurdecer, fechar o Discord, overlay, configurações, reconectar e sair" />

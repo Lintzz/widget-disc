@@ -43,6 +43,9 @@ public partial class App : Application
     private DispatcherTimer? _trimTimer;
     private DispatcherTimer? _resyncTimer;
 
+    /// <summary>Espera da janela do Discord do ultimo clique duplo; um clique novo cancela a anterior.</summary>
+    private CancellationTokenSource? _openDiscord;
+
     protected override async void OnStartup(StartupEventArgs e)
     {
         ConfigureRendering();
@@ -244,6 +247,10 @@ public partial class App : Application
         _viewModel!.IsInCall = state == VoiceConnectionState.InCall;
         _viewModel.StatusText = state switch
         {
+            // Com o Discord fechado a sessao alterna entre as duas a cada tentativa; o
+            // que interessa e que ele nao esta aberto (o clique duplo abre).
+            VoiceConnectionState.Connecting or VoiceConnectionState.Disconnected
+                when !_demoMode && !DiscordProcess.IsRunning() => "Discord fechado",
             VoiceConnectionState.Connecting => "Conectando...",
             VoiceConnectionState.NeedsAuthorization => "Autorize no Discord",
             VoiceConnectionState.Connected => "Fora de call",
@@ -318,6 +325,75 @@ public partial class App : Application
         }
 
         FileLog.Write($"fechar Discord pedido pelo usuario: {DiscordProcess.Quit()} processo(s) encerrado(s)");
+    }
+
+    /// <summary>
+    /// Abre o Discord (ou o tira da bandeja) e leva a janela para o monitor do widget
+    /// clicado. A janela leva de um instante (ja aberto) a dezenas de segundos (iniciando,
+    /// com atualizacao) para aparecer; a espera e uma consulta leve a cada 250 ms.
+    /// </summary>
+    private async Task OpenDiscordAsync(IntPtr monitor)
+    {
+        if (_demoMode)
+        {
+            FileLog.Write("abrir Discord ignorado (modo demonstracao)");
+            return;
+        }
+
+        var wasRunning = DiscordProcess.IsRunning();
+
+        try
+        {
+            if (!DiscordProcess.Launch())
+            {
+                Notify("Discord não encontrado", "Não achei o Discord instalado nesta conta do Windows.");
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            FileLog.Write($"abrir Discord falhou: {ex.Message}");
+            Notify("Não foi possível abrir o Discord", ex.Message);
+            return;
+        }
+
+        FileLog.Write(wasRunning ? "Discord aberto pelo widget (ja rodava)" : "Discord iniciado pelo widget");
+
+        _openDiscord?.Cancel();
+        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        _openDiscord = cts;
+
+        try
+        {
+            while (true)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(250), cts.Token);
+
+                var hwnd = DiscordProcess.FindMainWindow();
+                if (hwnd == IntPtr.Zero) continue;
+
+                // Minimizado na barra o Discord nao se restaura sozinho ao ser chamado.
+                if (NativeMethods.IsIconic(hwnd)) NativeMethods.ShowWindow(hwnd, NativeMethods.SW_RESTORE);
+
+                DiscordProcess.MoveToMonitor(hwnd, monitor);
+                NativeMethods.SetForegroundWindow(hwnd);
+                break;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Outro clique assumiu, ou a janela nao apareceu a tempo.
+            return;
+        }
+        finally
+        {
+            if (_openDiscord == cts) _openDiscord = null;
+            cts.Dispose();
+        }
+
+        // Com o Discord fechado as tentativas de conexao ja estavam espacadas em ate 30 s;
+        // recomecar agora conecta assim que o RPC dele subir.
+        if (!wasRunning) await RestartSessionAsync();
     }
 
     private async Task RestartSessionAsync()
@@ -723,6 +799,7 @@ public partial class App : Application
         window.MuteToggleRequested += async (_, _) => await ToggleMuteAsync();
         window.DeafenToggleRequested += async (_, _) => await SetSelfVoiceAsync(deaf: !_viewModel!.SelfDeafened);
         window.QuitDiscordRequested += (_, _) => QuitDiscord();
+        window.OpenDiscordRequested += async (_, _) => await OpenDiscordAsync(window.Monitor);
         window.DiscordStateProvider = CurrentDiscordMenuState;
         window.Closed += (_, _) => OnWidgetWindowClosed(window);
 

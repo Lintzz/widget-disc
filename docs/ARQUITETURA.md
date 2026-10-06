@@ -26,6 +26,12 @@ a próxima autoriza num pipe novo.
 **Fechar o Discord** não passa pelo RPC, que não tem comando para isso: o widget encerra
 os processos `Discord`, `DiscordPTB` e `DiscordCanary` (`DiscordProcess`).
 
+**Abrir o Discord** (clique duplo) também não: o widget roda `Update.exe --processStart
+Discord.exe`, o mesmo do atalho do Menu Iniciar. Se o Discord já estiver aberto, ele
+recebe o pedido e mostra a própria janela, inclusive saindo da bandeja. Depois o widget
+espera a janela principal aparecer, restaura se estiver minimizada (o Discord não faz
+isso sozinho) e a leva para o monitor do widget clicado com `SetWindowPlacement`.
+
 ### Armadilhas do redirect no fluxo RPC
 
 Dois comportamentos que a documentação oficial não menciona e que custaram duas tentativas:
