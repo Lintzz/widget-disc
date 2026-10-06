@@ -14,7 +14,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
 
     <!-- Versao unica do app: o instalador le do executavel publicado (installer/build.ps1). -->
-    <Version>1.0.5</Version>
+    <Version>1.0.6</Version>
     <Product>Discord Voice Widget</Product>
     <!-- Vira a "Descricao do arquivo": e o nome que o Gerenciador de Tarefas mostra. -->
     <AssemblyTitle>Discord Voice Widget</AssemblyTitle>
