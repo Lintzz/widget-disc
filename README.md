@@ -100,7 +100,7 @@ tela, cada um abre na sua). Com o Discord fechado e o widget visível fora de ca
 mostra "Discord fechado".
 
 <div align="center">
-<img src="docs/images/menu.png" width="386" alt="Menu do botão direito: mutar microfone, ensurdecer, fechar o Discord, overlay, configurações, reconectar e sair" />
+<img src="docs/images/menu.png" width="394" alt="Menu do botão direito: abrir o Discord, mutar microfone, ensurdecer, fechar o Discord, overlay, configurações, reconectar e sair" />
 </div>
 
 > **Atualizando da 1.0.3 ou anterior:** mutar e ensurdecer pedem uma permissão nova ao
