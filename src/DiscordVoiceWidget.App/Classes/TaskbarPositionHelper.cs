@@ -51,6 +51,8 @@ internal static class TaskbarPositionHelper
     /// </summary>
     private const int SecondaryTrayEstimate = 120;
 
+    private static readonly uint OwnProcessId = (uint)Environment.ProcessId;
+
     /// <summary>
     /// Barra onde o widget deve ficar, ou null se o alvo nao existir agora.
     ///
@@ -198,6 +200,13 @@ internal static class TaskbarPositionHelper
             // classe e regiao so para as poucas que cruzam a barra.
             if (handle == self || !GetWindowRect(handle, out var window) || !Intersects(window, bar)) continue;
             if (!IsWindowVisible(handle) || IsShellWindow(ClassNameOf(handle))) continue;
+
+            // Popups do proprio app (tooltip do nome, menu de contexto) sao topmost e
+            // caem por cima da barra. Contados como vizinhos, o widget desviava do
+            // proprio tooltip, o mouse caia em outro avatar, abria outro tooltip e o
+            // widget ia andando pela barra.
+            GetWindowThreadProcessId(handle, out var ownerPid);
+            if (ownerPid == OwnProcessId) continue;
 
             if (VisibleBounds(handle, window, taskbar) is { } rect)
             {
