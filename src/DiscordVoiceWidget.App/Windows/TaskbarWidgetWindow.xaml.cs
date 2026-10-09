@@ -101,8 +101,11 @@ public partial class TaskbarWidgetWindow : Window
     public event EventHandler? DeafenToggleRequested;
     public event EventHandler? QuitDiscordRequested;
 
-    /// <summary>Clique duplo no widget ou "Abrir o Discord" no menu.</summary>
+    /// <summary>"Abrir o Discord" no menu.</summary>
     public event EventHandler? OpenDiscordRequested;
+
+    /// <summary>Clique duplo no widget: abre o Discord, ou minimiza se ja estiver aberto nesta tela.</summary>
+    public event EventHandler? ToggleDiscordRequested;
 
     /// <summary>Estado atual do overlay, lido pelo menu de contexto ao abrir.</summary>
     internal Func<OverlayMenuState>? OverlayStateProvider { get; set; }
@@ -372,7 +375,7 @@ public partial class TaskbarWidgetWindow : Window
         if (e.ClickCount != 2) return;
 
         e.Handled = true;
-        OpenDiscordRequested?.Invoke(this, EventArgs.Empty);
+        ToggleDiscordRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnOpenDiscordClick(object sender, RoutedEventArgs e)

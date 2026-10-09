@@ -30,7 +30,7 @@
 - **Um ou dois monitores**: na barra secundária (que continua visível durante jogos em tela cheia), na principal ou nas duas.
 - **Overlay sobre os jogos** opcional, com atalhos globais e cliques que atravessam a janela.
 - **Menu no próprio widget**: botão direito para mutar, ensurdecer, fechar o Discord, ligar o overlay e abrir as configurações.
-- **Clique duplo abre o Discord** na tela do widget clicado, mesmo fechado, escondido na bandeja ou minimizado.
+- **Clique duplo abre o Discord** na tela do widget clicado, mesmo fechado, escondido na bandeja, minimizado ou maximizado em outra tela. Outro clique duplo minimiza.
 - **Leve**: cerca de 25 MB de memória, nada rodando fora de call e nenhum uso de GPU.
 
 ## Requisitos

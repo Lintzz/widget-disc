@@ -144,9 +144,25 @@ internal static class DiscordProcess
             Bottom = top - offsetY + height,
         };
 
-        // Maximizada, o Windows maximiza no monitor onde a posicao normal cai.
-        if (placement.showCmd == SW_SHOWMINIMIZED) placement.showCmd = SW_SHOWNORMAL;
+        // Ja maximizada, o Windows guarda a posicao normal nova mas deixa a janela onde
+        // esta. Restaurada direto no monitor novo e maximizada de novo, ela vai junto.
+        var maximized = placement.showCmd == SW_SHOWMAXIMIZED;
+        placement.showCmd = SW_SHOWNORMAL;
         SetWindowPlacement(hwnd, ref placement);
+        if (maximized) ShowWindow(hwnd, SW_MAXIMIZE);
+    }
+
+    /// <summary>
+    /// A janela esta aberta (nao minimizada) neste monitor e e a que o usuario esta vendo:
+    /// a ativa, ou a ultima ativa quando o clique no widget passou o foco para a barra.
+    /// </summary>
+    public static bool IsShownOn(IntPtr hwnd, IntPtr monitor)
+    {
+        if (IsIconic(hwnd) || MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) != monitor) return false;
+
+        var foreground = GetForegroundWindow();
+        return foreground == hwnd
+            || ClassNameOf(foreground) is "Shell_TrayWnd" or "Shell_SecondaryTrayWnd";
     }
 
     /// <summary>Encerra todos os processos do Discord. Retorna quantos foram encerrados.</summary>

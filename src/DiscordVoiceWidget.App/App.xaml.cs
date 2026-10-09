@@ -332,12 +332,26 @@ public partial class App : Application
     /// clicado. A janela leva de um instante (ja aberto) a dezenas de segundos (iniciando,
     /// com atualizacao) para aparecer; a espera e uma consulta leve a cada 250 ms.
     /// </summary>
-    private async Task OpenDiscordAsync(IntPtr monitor)
+    private async Task OpenDiscordAsync(IntPtr monitor, bool toggle = false)
     {
         if (_demoMode)
         {
             FileLog.Write("abrir Discord ignorado (modo demonstracao)");
             return;
+        }
+
+        // Clique duplo com o Discord ja aberto nesta tela: minimiza, como o botao dele
+        // na barra de tarefas.
+        if (toggle)
+        {
+            var current = DiscordProcess.FindMainWindow();
+            if (current != IntPtr.Zero && DiscordProcess.IsShownOn(current, monitor))
+            {
+                _openDiscord?.Cancel();
+                NativeMethods.ShowWindow(current, NativeMethods.SW_MINIMIZE);
+                FileLog.Write("Discord minimizado pelo widget");
+                return;
+            }
         }
 
         var wasRunning = DiscordProcess.IsRunning();
@@ -800,6 +814,7 @@ public partial class App : Application
         window.DeafenToggleRequested += async (_, _) => await SetSelfVoiceAsync(deaf: !_viewModel!.SelfDeafened);
         window.QuitDiscordRequested += (_, _) => QuitDiscord();
         window.OpenDiscordRequested += async (_, _) => await OpenDiscordAsync(window.Monitor);
+        window.ToggleDiscordRequested += async (_, _) => await OpenDiscordAsync(window.Monitor, toggle: true);
         window.DiscordStateProvider = CurrentDiscordMenuState;
         window.Closed += (_, _) => OnWidgetWindowClosed(window);
 

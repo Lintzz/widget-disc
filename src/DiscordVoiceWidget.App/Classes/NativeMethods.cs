@@ -259,7 +259,10 @@ internal static partial class NativeMethods
     // ---- janela do Discord ------------------------------------------------
     public const uint GW_OWNER = 4;
     public const int SW_SHOWMINIMIZED = 2;
+    public const int SW_SHOWMAXIMIZED = 3;
     public const int SW_SHOWNORMAL = 1;
+    public const int SW_MAXIMIZE = 3;
+    public const int SW_MINIMIZE = 6;
 
     /// <summary>Qualquer processo pode trazer a propria janela para frente.</summary>
     public const uint ASFW_ANY = unchecked((uint)-1);
