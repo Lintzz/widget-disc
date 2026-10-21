@@ -103,6 +103,14 @@ mostra "Discord fechado".
 <img src="docs/images/menu.png" width="394" alt="Menu do botão direito: abrir o Discord, mutar microfone, ensurdecer, fechar o Discord, overlay, configurações, reconectar e sair" />
 </div>
 
+Com o [Stream Live](https://github.com/Lintzz/stream-live) instalado, o menu ganha
+**Iniciar live**: abre o Stream Live (ou o que já está aberto) direto na escolha da tela.
+Enquanto você transmite, um selo vermelho **LIVE** aparece no widget, com quantas pessoas
+estão assistindo à esquerda (passe o mouse para ver quem), e o item vira
+**Encerrar live**, que fecha o Stream Live como o X dele, sem a confirmação (o Radmin VPN
+segue a última escolha de "Fechar o Radmin VPN também"). Precisa do Stream Live 2.5.0 ou
+mais novo; dá para desligar em Configurações → Stream Live.
+
 > **Atualizando da 1.0.3 ou anterior:** mutar e ensurdecer pedem uma permissão nova ao
 > Discord, então um pedido de autorização abre nele uma vez. Clique em **Autorizar**.
 
@@ -127,6 +135,7 @@ Abra pelo botão direito no widget ou pelo Menu Iniciar. As mudanças valem na h
 | Overlay sobre os jogos | Desligado |
 | Atalho para ligar/desligar o overlay | `Ctrl+Shift+O` |
 | Atalho para mover o overlay | `Ctrl+Shift+P` |
+| Conectar com o Stream Live (só aparece com ele instalado) | Sim |
 | Iniciar com o Windows | Não (o instalador oferece) |
 
 > [!TIP]

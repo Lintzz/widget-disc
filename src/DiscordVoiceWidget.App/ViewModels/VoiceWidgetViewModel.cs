@@ -85,6 +85,9 @@ public sealed class VoiceWidgetViewModel : ObservableBase
 {
     private double _avatarDiameter = AvatarDiameterFor(AvatarSizeOption.Medium);
     private bool _isInCall;
+    private bool _isLive;
+    private int _liveViewers;
+    private string _liveTooltip = string.Empty;
     private bool _selfDeafened;
     private bool _selfMuted;
     private string _statusText = "Conectando...";
@@ -133,6 +136,38 @@ public sealed class VoiceWidgetViewModel : ObservableBase
     {
         get => _isInCall;
         set => Set(ref _isInCall, value);
+    }
+
+    /// <summary>Transmitindo pelo Stream Live: o selo LIVE aparece no widget.</summary>
+    public bool IsLive
+    {
+        get => _isLive;
+        set => Set(ref _isLive, value);
+    }
+
+    /// <summary>Quantos estao assistindo a live, mostrado a esquerda do LIVE.</summary>
+    public int LiveViewers
+    {
+        get => _liveViewers;
+        private set => Set(ref _liveViewers, value);
+    }
+
+    public string LiveTooltip
+    {
+        get => _liveTooltip;
+        private set => Set(ref _liveTooltip, value);
+    }
+
+    public void ApplyLive(bool isLive, int viewers, IReadOnlyList<string> names)
+    {
+        IsLive = isLive;
+        LiveViewers = viewers;
+        LiveTooltip = viewers switch
+        {
+            0 => "Você está ao vivo no Stream Live. Ninguém assistindo ainda.",
+            _ when names.Count == 0 => $"Você está ao vivo no Stream Live. {viewers} assistindo.",
+            _ => "Assistindo agora:\n• " + string.Join("\n• ", names),
+        } + "\nBotão direito → Encerrar live.";
     }
 
     public bool SelfMuted

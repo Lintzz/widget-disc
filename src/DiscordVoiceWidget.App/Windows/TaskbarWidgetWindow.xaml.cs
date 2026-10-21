@@ -15,6 +15,9 @@ internal readonly record struct OverlayMenuState(bool Enabled, bool Moving, stri
 /// <summary>O que o menu precisa saber do Discord ao abrir.</summary>
 internal readonly record struct DiscordMenuState(bool CanControlVoice, bool IsRunning);
 
+/// <summary>O que o menu mostra do Stream Live: nada (desligado ou nao instalado), iniciar ou encerrar.</summary>
+internal readonly record struct StreamLiveMenuState(bool Available, bool IsLive);
+
 /// <summary>
 /// Janela do widget na barra de tarefas, embutida DENTRO da barra.
 ///
@@ -113,6 +116,15 @@ public partial class TaskbarWidgetWindow : Window
     /// <summary>Conexao com o Discord, lida pelo menu de contexto ao abrir.</summary>
     internal Func<DiscordMenuState>? DiscordStateProvider { get; set; }
 
+    /// <summary>"Iniciar live" no menu (abre o Stream Live no modal de transmitir).</summary>
+    public event EventHandler? StartLiveRequested;
+
+    /// <summary>"Encerrar live" no menu (fecha o Stream Live, como o X dele).</summary>
+    public event EventHandler? EndLiveRequested;
+
+    /// <summary>Estado do Stream Live, lido pelo menu de contexto ao abrir.</summary>
+    internal Func<StreamLiveMenuState>? StreamLiveStateProvider { get; set; }
+
     /// <summary>
     /// Mudou entre "trabalhando" (em call, ou configurado para ficar sempre visivel) e
     /// "parado". O app usa a transicao para devolver memoria ao sistema.
@@ -175,7 +187,8 @@ public partial class TaskbarWidgetWindow : Window
     {
         if (!_initialized) return;
 
-        var active = !HideWhenNotInCall || _viewModel.IsInCall;
+        // Ao vivo fora de call tambem: o selo LIVE e o "Encerrar live" precisam estar a mao.
+        var active = !HideWhenNotInCall || _viewModel.IsInCall || _viewModel.IsLive;
         if (active != _active)
         {
             _active = active;
@@ -331,7 +344,7 @@ public partial class TaskbarWidgetWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(VoiceWidgetViewModel.IsInCall)) UpdateActivity();
+        if (e.PropertyName is nameof(VoiceWidgetViewModel.IsInCall) or nameof(VoiceWidgetViewModel.IsLive)) UpdateActivity();
     }
 
     // -----------------------------------------------------------------------
@@ -355,6 +368,15 @@ public partial class TaskbarWidgetWindow : Window
             deafenItem.IsEnabled = discord.CanControlVoice;
             items.First(i => Equals(i.Tag, "QuitDiscord")).IsEnabled = discord.IsRunning;
         }
+
+        var liveItem = items.First(i => Equals(i.Tag, "Live"));
+        var live = StreamLiveStateProvider?.Invoke() ?? default;
+        liveItem.Visibility = live.Available ? Visibility.Visible : Visibility.Collapsed;
+        liveItem.Header = live.IsLive ? "Encerrar live" : "Iniciar live";
+
+        // Encerrar fecha o Stream Live inteiro: no vermelho de acao destrutiva, como "Fechar o Discord".
+        if (live.IsLive) liveItem.Foreground = (System.Windows.Media.Brush)liveItem.FindResource("MenuDanger");
+        else liveItem.ClearValue(ForegroundProperty);
 
         // O estado do overlay muda por atalho, pelas configuracoes e pelo proprio
         // overlay; ler na abertura dispensa manter o menu sincronizado o tempo todo.
@@ -380,6 +402,13 @@ public partial class TaskbarWidgetWindow : Window
 
     private void OnOpenDiscordClick(object sender, RoutedEventArgs e)
         => OpenDiscordRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnLiveClick(object sender, RoutedEventArgs e)
+    {
+        // Vale o que estava escrito no clique: a live pode ter mudado com o menu aberto.
+        if (Equals(((MenuItem)sender).Header, "Encerrar live")) EndLiveRequested?.Invoke(this, EventArgs.Empty);
+        else StartLiveRequested?.Invoke(this, EventArgs.Empty);
+    }
 
     private void OnMuteClick(object sender, RoutedEventArgs e)
         => MuteToggleRequested?.Invoke(this, EventArgs.Empty);

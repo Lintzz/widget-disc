@@ -144,6 +144,39 @@
         </Border.Style>
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
 
+            <!-- Selo LIVE: transmitindo pelo Stream Live. Vermelho do "AO VIVO" do Discord. -->
+            <Border Background="{StaticResource MutedBrush}"
+                    CornerRadius="4"
+                    Padding="5,1,6,1"
+                    Margin="2,0,6,0"
+                    VerticalAlignment="Center"
+                    Visibility="{Binding IsLive, Converter={StaticResource BoolToVis}}">
+                <Border.ToolTip>
+                    <ToolTip Content="{Binding LiveTooltip}" />
+                </Border.ToolTip>
+                <StackPanel Orientation="Horizontal">
+                    <!-- Quantos estao assistindo: olho + numero, antes do LIVE. -->
+                    <Path Data="M0.5,4 C2,1.2 4,0 6,0 C8,0 10,1.2 11.5,4 C10,6.8 8,8 6,8 C4,8 2,6.8 0.5,4 Z M6,2 A2,2 0 1 0 6,6 A2,2 0 1 0 6,2 Z"
+                          Fill="White"
+                          Width="12" Height="8"
+                          Stretch="Uniform"
+                          Margin="0,0,3,0"
+                          VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding LiveViewers}"
+                               Foreground="White"
+                               FontSize="10"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center" />
+                    <Rectangle Width="1" Height="10" Fill="#80FFFFFF" Margin="5,0" VerticalAlignment="Center" />
+                    <Ellipse Width="6" Height="6" Fill="White" Margin="0,0,4,0" VerticalAlignment="Center" />
+                    <TextBlock Text="LIVE"
+                               Foreground="White"
+                               FontSize="10"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+            </Border>
+
             <!-- Indicador do meu microfone. -->
             <Grid Width="20" Height="20" Margin="2,0,4,0">
                 <Grid.ToolTip>

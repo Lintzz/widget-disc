@@ -113,6 +113,8 @@
             </ContextMenu.Resources>
 
             <MenuItem Header="Abrir o Discord" InputGestureText="Clique duplo" Click="OnOpenDiscordClick" />
+            <!-- Stream Live: "Iniciar live" ou "Encerrar live"; some com a integracao desligada. -->
+            <MenuItem Tag="Live" Header="Iniciar live" Click="OnLiveClick" />
             <Separator />
             <MenuItem Tag="Mute" Header="Mutar microfone" Click="OnMuteClick" />
             <MenuItem Tag="Deafen" Header="Ensurdecer" Click="OnDeafenClick" />

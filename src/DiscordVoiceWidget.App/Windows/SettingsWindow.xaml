@@ -149,6 +149,13 @@
                     <TextBlock Style="{StaticResource Hint}"
                                Text="Ligado, aparece enquanto você estiver em call — sem detectar jogo nem tela cheia. Fica por cima de jogos em tela cheia sem bordas ou em janela (não em tela cheia exclusiva). Janela separada, sem nada injetado no jogo; fora do modo mover os cliques atravessam." />
 
+                    <TextBlock Text="Stream Live" Style="{StaticResource SectionHeader}" />
+
+                    <CheckBox x:Name="StreamLiveCheck"
+                              Content="Conectar com o Stream Live"
+                              Checked="OnChanged" Unchecked="OnChanged" />
+                    <TextBlock x:Name="StreamLiveHint" Style="{StaticResource Hint}" />
+
                     <TextBlock Text="Sistema" Style="{StaticResource SectionHeader}" />
 
                     <CheckBox x:Name="StartupCheck"

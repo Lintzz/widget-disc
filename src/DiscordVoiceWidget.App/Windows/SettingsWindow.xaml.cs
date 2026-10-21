@@ -47,6 +47,11 @@ public partial class SettingsWindow : Window
         ToggleHotkeyBox.Text = _settings.ToggleOverlayHotkey;
         MoveHotkeyBox.Text = _settings.MoveOverlayHotkey;
 
+        StreamLiveCheck.IsChecked = _settings.StreamLiveEnabled;
+        StreamLiveHint.Text = StreamLiveLink.FindExecutable() is null
+            ? "Stream Live não encontrado neste PC: a opção só vale depois de instalá-lo."
+            : "\"Iniciar live\" no menu do widget abre o Stream Live direto na escolha da tela, e o selo LIVE aparece enquanto você transmite. Desligado, nada dele roda no widget.";
+
         StartupCheck.IsChecked = StartupRegistration.IsEnabled;
         UpdateStartupHint();
 
@@ -147,6 +152,7 @@ public partial class SettingsWindow : Window
         _settings.SpeakingReleaseMs = (int)ReleaseSlider.Value;
 
         _settings.OverlayEnabled = OverlayCheck.IsChecked == true;
+        _settings.StreamLiveEnabled = StreamLiveCheck.IsChecked == true;
 
         SettingsChanged?.Invoke(_settings.Clone());
     }

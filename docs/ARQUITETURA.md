@@ -162,6 +162,26 @@ await session.StartAsync(ct);
 Os eventos chegam na thread do loop de leitura do pipe — a UI precisa marshalar
 para o `Dispatcher`.
 
+## Integração com o Stream Live
+
+`StreamLiveLink` conversa com o Stream Live (o `WidgetBridge` dele) por eventos nomeados do
+Windows, o mesmo meio dos sinais entre instâncias do widget — sem rede e sem consulta
+periódica:
+
+| Evento (`StreamLiveApp.*`) | Quem cria | Para quê |
+|---|---|---|
+| `Transmitir` | Stream Live | O widget sinaliza "Iniciar live". Existe só com ele aberto: é assim que o widget sabe se precisa abrir o `.exe` com `--transmitir` |
+| `Encerrar` | Stream Live | O widget sinaliza "Encerrar live": fecha como o X, sem confirmação |
+| `AoVivo` | Stream Live | Ligado durante a live. O widget lê e fecha o handle na hora: segurar manteria o objeto vivo depois de o Stream Live cair |
+| `EstadoMudou` | quem abrir primeiro | O Stream Live sinaliza a cada início/fim de live e a cada amigo que entra ou sai; o widget espera nele pelo pool de threads |
+| `Espectadores` (memória compartilhada, 4 KB) | Stream Live | Quem está assistindo: tamanho em 4 bytes, depois UTF-8 com a contagem na 1ª linha e um nome por linha. Evento não carrega número |
+
+Se o Stream Live cair no meio da live, ele não avisa; por isso, só enquanto a live está no
+ar, o widget acompanha o fim do processo (`Process.Exited`). Com a integração desligada ou
+sem o Stream Live instalado (achado pela chave de desinstalação `Stream Live_is1`), o
+`StreamLiveLink` não é criado. Ao vivo, o widget aparece mesmo fora de call, para o selo
+e o "Encerrar live" estarem à mão.
+
 ## Consumo de recursos
 
 O widget fica aberto o dia todo, junto com o Discord, enquanto o PC roda jogos. O

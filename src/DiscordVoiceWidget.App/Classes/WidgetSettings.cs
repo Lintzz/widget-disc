@@ -80,6 +80,14 @@ public sealed class WidgetSettings
     /// <summary>Entra e sai do modo de posicionar o overlay com o mouse.</summary>
     public string MoveOverlayHotkey { get; set; } = "Ctrl+Shift+P";
 
+    // ---- Stream Live --------------------------------------------------------
+
+    /// <summary>
+    /// "Iniciar live"/"Encerrar live" no menu e o selo LIVE. Ligado por padrao, mas so
+    /// aparece com o Stream Live instalado. Desligado, nada dele roda no widget.
+    /// </summary>
+    public bool StreamLiveEnabled { get; set; } = true;
+
     public static WidgetSettings Load()
     {
         try

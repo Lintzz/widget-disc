@@ -32,6 +32,10 @@ public partial class App : Application
     private VoiceSessionService? _session;
     private VoiceWidgetViewModel? _viewModel;
 
+    /// <summary>Ligacao com o Stream Live; nula com a integracao desligada ou no modo demonstracao.</summary>
+    private StreamLiveLink? _streamLive;
+    private bool _demoLive;
+
     /// <summary>
     /// Uma janela por barra em uso. Todas compartilham o mesmo ViewModel, entao ha uma
     /// unica conexao com o Discord e um unico estado, desenhado em cada tela.
@@ -79,7 +83,9 @@ public partial class App : Application
         // "--demo-deafened", ensurdecido.
         var demoDeafened = e.Args.Any(arg => arg.Equals("--demo-deafened", StringComparison.OrdinalIgnoreCase));
         var demoMuted = demoDeafened || e.Args.Any(arg => arg.Equals("--demo-muted", StringComparison.OrdinalIgnoreCase));
-        _demoMode = demoMuted || e.Args.Any(arg => arg.Equals("--demo", StringComparison.OrdinalIgnoreCase));
+        // "--demo-live" mostra o selo LIVE do Stream Live.
+        _demoLive = e.Args.Any(arg => arg.Equals("--demo-live", StringComparison.OrdinalIgnoreCase));
+        _demoMode = demoMuted || _demoLive || e.Args.Any(arg => arg.Equals("--demo", StringComparison.OrdinalIgnoreCase));
 
         FileLog.Write(_demoMode ? "iniciando (modo demonstracao)" : "iniciando");
         ListenForSignals();
@@ -543,6 +549,7 @@ public partial class App : Application
 
         SyncWindows(settings);
         SyncOverlay(settings);
+        SyncStreamLive(settings);
         RegisterHotkeys(force: false);
         _viewModel!.ApplyAvatarSize(settings.AvatarSize);
 
@@ -765,6 +772,99 @@ public partial class App : Application
     }
 
     // -----------------------------------------------------------------------
+    // Stream Live
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Liga ou desliga a ligacao com o Stream Live. Desligada (ou sem o Stream Live
+    /// instalado), nada dele roda aqui: sem evento aberto, sem espera, sem item no menu.
+    /// </summary>
+    private void SyncStreamLive(WidgetSettings settings)
+    {
+        if (_demoMode)
+        {
+            // Demonstracao: o selo segue a opcao, sem tocar no Stream Live de verdade.
+            ShowLive(_demoLive && settings.StreamLiveEnabled ? DemoLiveState : StreamLiveState.Off);
+            return;
+        }
+
+        var wanted = settings.StreamLiveEnabled && StreamLiveLink.FindExecutable() is not null;
+        if (wanted == (_streamLive is not null)) return;
+
+        if (!wanted)
+        {
+            _streamLive!.Dispose();
+            _streamLive = null;
+            ShowLive(StreamLiveState.Off);
+            FileLog.Write("Stream Live: integracao desligada");
+            return;
+        }
+
+        var link = new StreamLiveLink();
+        link.StateChanged += state => Post(() =>
+        {
+            // Evento atrasado de uma ligacao que ja foi desligada.
+            if (_streamLive != link) return;
+            ShowLive(state);
+        });
+        _streamLive = link;
+        ShowLive(link.State);
+        FileLog.Write("Stream Live: integracao ligada");
+    }
+
+    /// <summary>Os dois amigos ficticios que o --demo do proprio Stream Live mostra assistindo.</summary>
+    private static readonly StreamLiveState DemoLiveState = new(true, 2, ["Bruno", "Diego"]);
+
+    private void ShowLive(StreamLiveState state)
+    {
+        _viewModel!.ApplyLive(state.IsLive, state.ViewerCount, state.ViewerNames);
+
+        // O numero muda a largura da pilula; reancorar.
+        foreach (var window in _windows) window.Reposition();
+    }
+
+    private StreamLiveMenuState CurrentStreamLiveMenuState() => _demoMode
+        ? new(_settings.StreamLiveEnabled, _viewModel!.IsLive)
+        : new(_streamLive is not null, _streamLive?.State.IsLive == true);
+
+    private void StartLive()
+    {
+        if (_demoMode)
+        {
+            ShowLive(DemoLiveState);
+            return;
+        }
+
+        try
+        {
+            if (!StreamLiveLink.StartLive())
+            {
+                Notify("Stream Live não encontrado", "Não achei o Stream Live instalado neste PC.");
+                return;
+            }
+            FileLog.Write("Stream Live: iniciar live pedido pelo usuario");
+        }
+        catch (Exception ex)
+        {
+            FileLog.Write($"Stream Live: abrir falhou: {ex.Message}");
+            Notify("Não foi possível abrir o Stream Live", ex.Message);
+        }
+    }
+
+    private void EndLive()
+    {
+        if (_demoMode)
+        {
+            ShowLive(StreamLiveState.Off);
+            return;
+        }
+
+        FileLog.Write(StreamLiveLink.EndLive()
+            ? "Stream Live: encerrar live pedido pelo usuario"
+            : "Stream Live: encerrar pedido, mas ele ja estava fechado");
+    }
+
+    // -----------------------------------------------------------------------
     // Sinais entre instancias
     // -----------------------------------------------------------------------
 
@@ -816,6 +916,9 @@ public partial class App : Application
         window.OpenDiscordRequested += async (_, _) => await OpenDiscordAsync(window.Monitor);
         window.ToggleDiscordRequested += async (_, _) => await OpenDiscordAsync(window.Monitor, toggle: true);
         window.DiscordStateProvider = CurrentDiscordMenuState;
+        window.StartLiveRequested += (_, _) => StartLive();
+        window.EndLiveRequested += (_, _) => EndLive();
+        window.StreamLiveStateProvider = CurrentStreamLiveMenuState;
         window.Closed += (_, _) => OnWidgetWindowClosed(window);
 
         // Saiu da call: a lista de participantes e os avatares ja nao estao na tela.
@@ -862,6 +965,7 @@ public partial class App : Application
 
         _shellEvents?.Dispose();
         _hotkeys?.Dispose();
+        _streamLive?.Dispose();
         _exitWait?.Unregister(null);
         _settingsWait?.Unregister(null);
         _exitSignal?.Dispose();
