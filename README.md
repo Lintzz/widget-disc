@@ -104,7 +104,9 @@ mostra "Discord fechado".
 </div>
 
 Com o [Stream Live](https://github.com/Lintzz/stream-live) instalado, o menu ganha
-**Iniciar live**: abre o Stream Live (ou o que já está aberto) direto na escolha da tela.
+**Abrir o Stream Live**, para ver a live de um amigo sem ir até a área de trabalho
+(aberto, minimizado ou atrás do jogo, ele vem para a frente), e **Iniciar live**, que
+abre o Stream Live (ou o que já está aberto) direto na escolha da tela.
 Enquanto você transmite, um selo vermelho **LIVE** aparece no widget, com quantas pessoas
 estão assistindo à esquerda (passe o mouse para ver quem), e o item vira
 **Encerrar live**, que fecha o Stream Live como o X dele, sem a confirmação (o Radmin VPN

@@ -116,6 +116,9 @@ public partial class TaskbarWidgetWindow : Window
     /// <summary>Conexao com o Discord, lida pelo menu de contexto ao abrir.</summary>
     internal Func<DiscordMenuState>? DiscordStateProvider { get; set; }
 
+    /// <summary>"Abrir o Stream Live" no menu (para ver as lives dos amigos).</summary>
+    public event EventHandler? OpenStreamLiveRequested;
+
     /// <summary>"Iniciar live" no menu (abre o Stream Live no modal de transmitir).</summary>
     public event EventHandler? StartLiveRequested;
 
@@ -372,6 +375,7 @@ public partial class TaskbarWidgetWindow : Window
         var liveItem = items.First(i => Equals(i.Tag, "Live"));
         var live = StreamLiveStateProvider?.Invoke() ?? default;
         liveItem.Visibility = live.Available ? Visibility.Visible : Visibility.Collapsed;
+        items.First(i => Equals(i.Tag, "OpenStreamLive")).Visibility = liveItem.Visibility;
         liveItem.Header = live.IsLive ? "Encerrar live" : "Iniciar live";
 
         // Encerrar fecha o Stream Live inteiro: no vermelho de acao destrutiva, como "Fechar o Discord".
@@ -402,6 +406,9 @@ public partial class TaskbarWidgetWindow : Window
 
     private void OnOpenDiscordClick(object sender, RoutedEventArgs e)
         => OpenDiscordRequested?.Invoke(this, EventArgs.Empty);
+
+    private void OnOpenStreamLiveClick(object sender, RoutedEventArgs e)
+        => OpenStreamLiveRequested?.Invoke(this, EventArgs.Empty);
 
     private void OnLiveClick(object sender, RoutedEventArgs e)
     {

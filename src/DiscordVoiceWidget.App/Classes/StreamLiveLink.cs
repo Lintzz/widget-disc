@@ -127,6 +127,47 @@ internal sealed class StreamLiveLink : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// Mostra o Stream Live: aberto (inclusive minimizado ou atras do jogo), traz a janela
+    /// para a frente; fechado, abre normal. Retorna false se ele nao esta instalado.
+    ///
+    /// Pela janela, e nao por um sinal: assim funciona com qualquer versao do Stream Live,
+    /// sem depender da ponte.
+    /// </summary>
+    public static bool Open()
+    {
+        var processes = Process.GetProcessesByName(ProcessName);
+        try
+        {
+            if (processes.Length > 0)
+            {
+                // Ainda subindo, sem janela: ela aparece na frente sozinha.
+                var hwnd = processes.Select(p => p.MainWindowHandle).FirstOrDefault(h => h != IntPtr.Zero);
+                if (hwnd == IntPtr.Zero) return true;
+
+                if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
+                SetForegroundWindow(hwnd);
+                return true;
+            }
+        }
+        finally
+        {
+            foreach (var process in processes) process.Dispose();
+        }
+
+        if (FindExecutable() is not { } exe) return false;
+
+        AllowSetForegroundWindow(ASFW_ANY);
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = exe,
+            WorkingDirectory = Path.GetDirectoryName(exe),
+            UseShellExecute = false,
+        })?.Dispose();
+
+        return true;
+    }
+
     /// <summary>Fecha o Stream Live como o X dele, sem a confirmacao. False se ele nao estava aberto.</summary>
     public static bool EndLive() => Signal("Encerrar");
 

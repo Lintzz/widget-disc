@@ -827,6 +827,30 @@ public partial class App : Application
         ? new(_settings.StreamLiveEnabled, _viewModel!.IsLive)
         : new(_streamLive is not null, _streamLive?.State.IsLive == true);
 
+    private void OpenStreamLive()
+    {
+        if (_demoMode)
+        {
+            FileLog.Write("abrir Stream Live ignorado (modo demonstracao)");
+            return;
+        }
+
+        try
+        {
+            if (!StreamLiveLink.Open())
+            {
+                Notify("Stream Live não encontrado", "Não achei o Stream Live instalado neste PC.");
+                return;
+            }
+            FileLog.Write("Stream Live: aberto pelo widget");
+        }
+        catch (Exception ex)
+        {
+            FileLog.Write($"Stream Live: abrir falhou: {ex.Message}");
+            Notify("Não foi possível abrir o Stream Live", ex.Message);
+        }
+    }
+
     private void StartLive()
     {
         if (_demoMode)
@@ -916,6 +940,7 @@ public partial class App : Application
         window.OpenDiscordRequested += async (_, _) => await OpenDiscordAsync(window.Monitor);
         window.ToggleDiscordRequested += async (_, _) => await OpenDiscordAsync(window.Monitor, toggle: true);
         window.DiscordStateProvider = CurrentDiscordMenuState;
+        window.OpenStreamLiveRequested += (_, _) => OpenStreamLive();
         window.StartLiveRequested += (_, _) => StartLive();
         window.EndLiveRequested += (_, _) => EndLive();
         window.StreamLiveStateProvider = CurrentStreamLiveMenuState;
