@@ -84,7 +84,7 @@ public partial class App : Application
         // "--demo-deafened", ensurdecido.
         var demoDeafened = e.Args.Any(arg => arg.Equals("--demo-deafened", StringComparison.OrdinalIgnoreCase));
         var demoMuted = demoDeafened || e.Args.Any(arg => arg.Equals("--demo-muted", StringComparison.OrdinalIgnoreCase));
-        // "--demo-live" mostra a moldura de ao vivo do Stream Live.
+        // "--demo-live" mostra a pilula de ao vivo do Stream Live.
         _demoLive = e.Args.Any(arg => arg.Equals("--demo-live", StringComparison.OrdinalIgnoreCase));
         _demoMode = demoMuted || _demoLive || e.Args.Any(arg => arg.Equals("--demo", StringComparison.OrdinalIgnoreCase));
 
@@ -855,7 +855,7 @@ public partial class App : Application
     {
         if (_demoMode)
         {
-            // Demonstracao: a moldura segue a opcao, sem tocar no Stream Live de verdade.
+            // Demonstracao: a pilula segue a opcao, sem tocar no Stream Live de verdade.
             ShowLive(_demoLive && settings.StreamLiveEnabled ? DemoLiveState : StreamLiveState.Off);
             return;
         }

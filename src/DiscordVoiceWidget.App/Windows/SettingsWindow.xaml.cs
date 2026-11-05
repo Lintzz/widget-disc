@@ -40,7 +40,7 @@ public partial class SettingsWindow : Window
 
         StreamLiveHint.Text = StreamLiveLink.FindExecutable() is null
             ? "Stream Live não encontrado neste PC: a opção só vale depois de instalá-lo."
-            : "\"Iniciar live\" no menu do widget abre o Stream Live direto na escolha da tela, e o widget ganha uma moldura vermelha enquanto você transmite. Desligado, nada dele roda no widget.";
+            : "\"Iniciar live\" no menu do widget abre o Stream Live direto na escolha da tela, e o widget mostra uma pílula vermelha com quantos estão assistindo enquanto você transmite. Desligado, nada dele roda no widget.";
 
         _loading = false;
     }

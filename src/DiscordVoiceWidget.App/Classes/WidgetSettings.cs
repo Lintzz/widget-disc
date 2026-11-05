@@ -85,7 +85,7 @@ public sealed class WidgetSettings
     // ---- Stream Live --------------------------------------------------------
 
     /// <summary>
-    /// "Iniciar live"/"Encerrar live" no menu e a moldura de ao vivo. Ligado por padrao, mas so
+    /// "Iniciar live"/"Encerrar live" no menu e a pilula de ao vivo. Ligado por padrao, mas so
     /// aparece com o Stream Live instalado. Desligado, nada dele roda no widget.
     /// </summary>
     public bool StreamLiveEnabled { get; set; } = true;

@@ -180,7 +180,7 @@ periódica:
 Se o Stream Live cair no meio da live, ele não avisa; por isso, só enquanto a live está no
 ar, o widget acompanha o fim do processo (`Process.Exited`). Com a integração desligada ou
 sem o Stream Live instalado (achado pela chave de desinstalação `Stream Live_is1`), o
-`StreamLiveLink` não é criado. Ao vivo, o widget aparece mesmo fora de call, para a moldura
+`StreamLiveLink` não é criado. Ao vivo, o widget aparece mesmo fora de call, para a pílula
 e o "Encerrar live" estarem à mão.
 
 ## Consumo de recursos

@@ -107,7 +107,7 @@ Com o [Stream Live](https://github.com/Lintzz/stream-live) instalado, o menu gan
 **Abrir o Stream Live**, para ver a live de um amigo sem ir até a área de trabalho
 (aberto, minimizado ou atrás do jogo, ele vem para a frente), e **Iniciar live**, que
 abre o Stream Live (ou o que já está aberto) direto na escolha da tela.
-Enquanto você transmite, o widget ganha uma moldura vermelha fina e um quadradinho com quantas
+Enquanto você transmite, o widget mostra uma pílula vermelha com um ponto e quantas
 pessoas estão assistindo (passe o mouse para ver quem), e o item vira
 **Encerrar live**, que fecha o Stream Live como o X dele, sem a confirmação (o Radmin VPN
 segue a última escolha de "Fechar o Radmin VPN também"). Precisa do Stream Live 2.5.0 ou
