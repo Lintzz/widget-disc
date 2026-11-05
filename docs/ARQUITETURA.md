@@ -126,6 +126,7 @@ src/DiscordVoiceWidget.App/     aplicação WPF
   Classes/TaskbarClockLocator    relógio da barra secundária via UI Automation
   Classes/ShellEventsWindow.cs   janela oculta que repassa avisos do sistema
   Classes/WidgetSettings.cs      settings.json
+  Classes/SettingsBackup.cs      exportar e importar tudo em XML
   Classes/StartupRegistration    iniciar com o Windows (HKCU\...\Run)
   Classes/FileLog.cs             log diário
   Classes/MemoryTrimmer.cs       devolve memória ociosa ao sistema
@@ -179,7 +180,7 @@ periódica:
 Se o Stream Live cair no meio da live, ele não avisa; por isso, só enquanto a live está no
 ar, o widget acompanha o fim do processo (`Process.Exited`). Com a integração desligada ou
 sem o Stream Live instalado (achado pela chave de desinstalação `Stream Live_is1`), o
-`StreamLiveLink` não é criado. Ao vivo, o widget aparece mesmo fora de call, para o selo
+`StreamLiveLink` não é criado. Ao vivo, o widget aparece mesmo fora de call, para a moldura
 e o "Encerrar live" estarem à mão.
 
 ## Consumo de recursos

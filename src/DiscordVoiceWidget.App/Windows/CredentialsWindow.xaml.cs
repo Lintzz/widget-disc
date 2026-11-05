@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using DiscordVoiceWidget.Rpc;
 
@@ -15,9 +16,11 @@ public partial class CredentialsWindow : Window
 
     private readonly string _redirectUri;
 
-    public CredentialsWindow(DiscordCredentials? current, string? error = null)
+    public CredentialsWindow(DiscordCredentials? current, string? error = null, bool allowImport = false)
     {
         InitializeComponent();
+
+        if (allowImport) ImportButton.Visibility = Visibility.Visible;
 
         _redirectUri = string.IsNullOrWhiteSpace(current?.RedirectUri)
             ? DiscordCredentials.DefaultRedirectUri
@@ -67,6 +70,36 @@ public partial class CredentialsWindow : Window
     {
         ErrorText.Text = message;
         ErrorText.Visibility = message is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    /// <summary>
+    /// Primeira execucao: o widget ainda nao carregou as preferencias, entao basta deixa-las
+    /// no disco para ele encontrar logo depois que esta janela fechar.
+    /// </summary>
+    private void OnImportClick(object sender, RoutedEventArgs e)
+    {
+        if (SettingsBackup.PickImportPath(this) is not { } path) return;
+
+        try
+        {
+            var backup = SettingsBackup.Read(path);
+            backup.Settings.Save();
+            backup.ApplyStartup();
+
+            if (backup.Credentials is null)
+            {
+                ShowError("As preferências foram restauradas, mas este arquivo não tem as credenciais. Preencha os campos acima.");
+                return;
+            }
+
+            Result = backup.Credentials;
+            DialogResult = true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            FileLog.Write($"falha ao importar backup: {ex.Message}");
+            ShowError($"Não foi possível importar: {ex.Message}");
+        }
     }
 
     private void OnSaveClick(object sender, RoutedEventArgs e)

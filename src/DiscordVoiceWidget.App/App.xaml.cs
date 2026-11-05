@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
@@ -83,7 +84,7 @@ public partial class App : Application
         // "--demo-deafened", ensurdecido.
         var demoDeafened = e.Args.Any(arg => arg.Equals("--demo-deafened", StringComparison.OrdinalIgnoreCase));
         var demoMuted = demoDeafened || e.Args.Any(arg => arg.Equals("--demo-muted", StringComparison.OrdinalIgnoreCase));
-        // "--demo-live" mostra o selo LIVE do Stream Live.
+        // "--demo-live" mostra a moldura de ao vivo do Stream Live.
         _demoLive = e.Args.Any(arg => arg.Equals("--demo-live", StringComparison.OrdinalIgnoreCase));
         _demoMode = demoMuted || _demoLive || e.Args.Any(arg => arg.Equals("--demo", StringComparison.OrdinalIgnoreCase));
 
@@ -93,7 +94,7 @@ public partial class App : Application
         _credentials = _demoMode ? null : LoadCredentials();
         if (!_demoMode && _credentials is not { IsFilled: true })
         {
-            _credentials = AskCredentials(_credentials, owner: null);
+            _credentials = AskCredentials(_credentials, owner: null, allowImport: true);
             if (_credentials is null)
             {
                 Shutdown();
@@ -449,9 +450,9 @@ public partial class App : Application
     }
 
     /// <summary>Mostra a janela de credenciais e grava o resultado. Nulo se cancelar ou nao gravar.</summary>
-    private static DiscordCredentials? AskCredentials(DiscordCredentials? current, Window? owner, string? error = null)
+    private static DiscordCredentials? AskCredentials(DiscordCredentials? current, Window? owner, string? error = null, bool allowImport = false)
     {
-        var dialog = new CredentialsWindow(current, error);
+        var dialog = new CredentialsWindow(current, error, allowImport);
         if (owner is not null)
         {
             dialog.Owner = owner;
@@ -529,6 +530,8 @@ public partial class App : Application
         };
         _settingsWindow.MoveOverlayRequested += ToggleOverlayMove;
         _settingsWindow.CredentialsChangeRequested += ChangeCredentials;
+        _settingsWindow.ExportRequested += ExportBackup;
+        _settingsWindow.ImportRequested += ImportBackup;
         _settingsWindow.Closed += (_, _) =>
         {
             _settingsWindow = null;
@@ -541,6 +544,75 @@ public partial class App : Application
         };
         _settingsWindow.Show();
         _settingsWindow.Activate();
+    }
+
+    private void ExportBackup()
+    {
+        if (SettingsBackup.PickExportPath(_settingsWindow) is not { } path) return;
+
+        try
+        {
+            new SettingsBackup(_credentials, _settings, StartupRegistration.IsEnabled).Write(path);
+            FileLog.Write("configuracoes exportadas");
+            ShowBackupMessage($"Configurações exportadas para:\n{path}\n\nO arquivo contém o seu Client Secret: guarde fora deste PC e não compartilhe.", MessageBoxImage.Information);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            FileLog.Write($"falha ao exportar configuracoes: {ex.Message}");
+            ShowBackupMessage($"Não foi possível exportar:\n{ex.Message}", MessageBoxImage.Warning);
+        }
+    }
+
+    private async void ImportBackup()
+    {
+        if (SettingsBackup.PickImportPath(_settingsWindow) is not { } path) return;
+
+        SettingsBackup backup;
+        try
+        {
+            backup = SettingsBackup.Read(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            FileLog.Write($"falha ao importar configuracoes: {ex.Message}");
+            ShowBackupMessage($"Não foi possível importar:\n{ex.Message}", MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!backup.Settings.OverlayEnabled && _overlay?.IsMoving == true) _overlay.EndMove();
+        ApplySettings(backup.Settings, persist: true);
+
+        // Demonstracao: mostra as preferencias, mas nada de tocar no registro nem nas credenciais.
+        if (!_demoMode) backup.ApplyStartup();
+        _settingsWindow?.ReflectImported(_settings);
+
+        var credentials = _demoMode ? null : backup.Credentials;
+        var credentialsChanged = credentials is not null && credentials != _credentials;
+        if (credentialsChanged)
+        {
+            try
+            {
+                credentials!.Save();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                FileLog.Write($"falha ao salvar credenciais importadas: {ex.Message}");
+                ShowBackupMessage($"As preferências foram importadas, mas não foi possível salvar as credenciais:\n{ex.Message}", MessageBoxImage.Warning);
+                return;
+            }
+        }
+
+        FileLog.Write("configuracoes importadas");
+        ShowBackupMessage("Configurações importadas.", MessageBoxImage.Information);
+
+        if (credentialsChanged) await ApplyCredentialsAsync(credentials!);
+    }
+
+    private void ShowBackupMessage(string message, MessageBoxImage icon)
+    {
+        const string title = "Discord Voice Widget";
+        if (_settingsWindow is { } owner) MessageBox.Show(owner, message, title, MessageBoxButton.OK, icon);
+        else MessageBox.Show(message, title, MessageBoxButton.OK, icon);
     }
 
     private void ApplySettings(WidgetSettings settings, bool persist)
@@ -783,7 +855,7 @@ public partial class App : Application
     {
         if (_demoMode)
         {
-            // Demonstracao: o selo segue a opcao, sem tocar no Stream Live de verdade.
+            // Demonstracao: a moldura segue a opcao, sem tocar no Stream Live de verdade.
             ShowLive(_demoLive && settings.StreamLiveEnabled ? DemoLiveState : StreamLiveState.Off);
             return;
         }

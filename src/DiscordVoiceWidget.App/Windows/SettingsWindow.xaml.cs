@@ -24,7 +24,7 @@ public partial class SettingsWindow : Window
     /// <summary>Espaco entre as duas colunas.</summary>
     private const double ColumnGap = 32;
 
-    private readonly WidgetSettings _settings;
+    private WidgetSettings _settings;
 
     // Evita tratar como edicao do usuario a carga inicial dos controles.
     private bool _loading = true;
@@ -36,7 +36,18 @@ public partial class SettingsWindow : Window
         ConfigureInitialSize();
 
         _settings = current.Clone();
+        ShowSettings();
 
+        StreamLiveHint.Text = StreamLiveLink.FindExecutable() is null
+            ? "Stream Live não encontrado neste PC: a opção só vale depois de instalá-lo."
+            : "\"Iniciar live\" no menu do widget abre o Stream Live direto na escolha da tela, e o widget ganha uma moldura vermelha enquanto você transmite. Desligado, nada dele roda no widget.";
+
+        _loading = false;
+    }
+
+    /// <summary>Preenche os controles com <see cref="_settings"/>; quem chama cuida do _loading.</summary>
+    private void ShowSettings()
+    {
         SelectByTag(MonitorCombo, _settings.Monitor.ToString());
         SelectByTag(AvatarSizeCombo, _settings.AvatarSize.ToString());
         HideNotInCallCheck.IsChecked = _settings.HideWhenNotInCall;
@@ -48,14 +59,9 @@ public partial class SettingsWindow : Window
         MoveHotkeyBox.Text = _settings.MoveOverlayHotkey;
 
         StreamLiveCheck.IsChecked = _settings.StreamLiveEnabled;
-        StreamLiveHint.Text = StreamLiveLink.FindExecutable() is null
-            ? "Stream Live não encontrado neste PC: a opção só vale depois de instalá-lo."
-            : "\"Iniciar live\" no menu do widget abre o Stream Live direto na escolha da tela, e o selo LIVE aparece enquanto você transmite. Desligado, nada dele roda no widget.";
 
         StartupCheck.IsChecked = StartupRegistration.IsEnabled;
         UpdateStartupHint();
-
-        _loading = false;
     }
 
     /// <summary>Disparado a cada alteracao, ja com o valor novo.</summary>
@@ -126,6 +132,21 @@ public partial class SettingsWindow : Window
     public event Action? MoveOverlayRequested;
 
     public event Action? CredentialsChangeRequested;
+
+    public event Action? ExportRequested;
+
+    public event Action? ImportRequested;
+
+    /// <summary>Mostra na tela o que acabou de ser importado de um arquivo.</summary>
+    public void ReflectImported(WidgetSettings current)
+    {
+        _loading = true;
+
+        _settings = current.Clone();
+        ShowSettings();
+
+        _loading = false;
+    }
 
     /// <summary>
     /// Reflete mudancas feitas fora desta tela (atalho de teclado, menu do widget)
@@ -272,6 +293,10 @@ public partial class SettingsWindow : Window
     private void OnOpenConfigClick(object sender, RoutedEventArgs e) => OpenFolder(AppPaths.Dir);
 
     private void OnChangeCredentialsClick(object sender, RoutedEventArgs e) => CredentialsChangeRequested?.Invoke();
+
+    private void OnExportClick(object sender, RoutedEventArgs e) => ExportRequested?.Invoke();
+
+    private void OnImportClick(object sender, RoutedEventArgs e) => ImportRequested?.Invoke();
 
     private static void OpenFolder(string path)
     {

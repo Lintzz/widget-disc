@@ -190,7 +190,7 @@ public partial class TaskbarWidgetWindow : Window
     {
         if (!_initialized) return;
 
-        // Ao vivo fora de call tambem: o selo LIVE e o "Encerrar live" precisam estar a mao.
+        // Ao vivo fora de call tambem: a moldura de ao vivo e o "Encerrar live" precisam estar a mao.
         var active = !HideWhenNotInCall || _viewModel.IsInCall || _viewModel.IsLive;
         if (active != _active)
         {

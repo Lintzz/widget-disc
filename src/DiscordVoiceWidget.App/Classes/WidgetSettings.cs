@@ -47,6 +47,8 @@ public enum AvatarSizeOption
 /// usuario edita a mao uma vez; este muda pela tela de configuracoes. "Iniciar com
 /// o Windows" nao mora aqui - a fonte da verdade e o registro (ver
 /// <see cref="StartupRegistration"/>), senao os dois poderiam discordar.
+///
+/// Opcao nova aqui precisa entrar tambem no <see cref="SettingsBackup"/>.
 /// </summary>
 public sealed class WidgetSettings
 {
@@ -83,7 +85,7 @@ public sealed class WidgetSettings
     // ---- Stream Live --------------------------------------------------------
 
     /// <summary>
-    /// "Iniciar live"/"Encerrar live" no menu e o selo LIVE. Ligado por padrao, mas so
+    /// "Iniciar live"/"Encerrar live" no menu e a moldura de ao vivo. Ligado por padrao, mas so
     /// aparece com o Stream Live instalado. Desligado, nada dele roda no widget.
     /// </summary>
     public bool StreamLiveEnabled { get; set; } = true;
@@ -132,7 +134,7 @@ public sealed class WidgetSettings
         return copy;
     }
 
-    private WidgetSettings Normalized()
+    internal WidgetSettings Normalized()
     {
         SpeakingReleaseMs = Math.Clamp(SpeakingReleaseMs, MinSpeakingReleaseMs, MaxSpeakingReleaseMs);
         if (!Enum.IsDefined(Monitor)) Monitor = TaskbarMonitorPreference.Secondary;

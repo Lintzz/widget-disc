@@ -107,8 +107,8 @@ Com o [Stream Live](https://github.com/Lintzz/stream-live) instalado, o menu gan
 **Abrir o Stream Live**, para ver a live de um amigo sem ir até a área de trabalho
 (aberto, minimizado ou atrás do jogo, ele vem para a frente), e **Iniciar live**, que
 abre o Stream Live (ou o que já está aberto) direto na escolha da tela.
-Enquanto você transmite, um selo vermelho **LIVE** aparece no widget, com quantas pessoas
-estão assistindo à esquerda (passe o mouse para ver quem), e o item vira
+Enquanto você transmite, o widget ganha uma moldura vermelha fina e um quadradinho com quantas
+pessoas estão assistindo (passe o mouse para ver quem), e o item vira
 **Encerrar live**, que fecha o Stream Live como o X dele, sem a confirmação (o Radmin VPN
 segue a última escolha de "Fechar o Radmin VPN também"). Precisa do Stream Live 2.5.0 ou
 mais novo; dá para desligar em Configurações → Stream Live.
@@ -140,6 +140,11 @@ Abra pelo botão direito no widget ou pelo Menu Iniciar. As mudanças valem na h
 | Conectar com o Stream Live (só aparece com ele instalado) | Sim |
 | Iniciar com o Windows | Não (o instalador oferece) |
 
+**Exportar configurações** grava tudo isso, mais o Application ID e o Client Secret, em um arquivo
+XML. Depois de formatar, instale o widget e use **Importar de um backup** na primeira janela (ou
+**Importar configurações** nesta tela). O Discord só pede para autorizar de novo. O secret fica
+legível no arquivo: guarde fora do PC e não compartilhe.
+
 > [!TIP]
 > Por que a barra secundária? Um jogo em tela cheia no monitor principal cobre a barra dele,
 > mas a barra do segundo monitor continua visível. Sem segundo monitor, o widget usa a principal.
@@ -167,6 +172,7 @@ Uma cópia do widget flutuando sobre o jogo, somando-se aos widgets da barra.
 - O token fica em `%APPDATA%\DiscordVoiceWidget\token.dat`, criptografado com DPAPI (só o seu
   usuário do Windows, nesta máquina, consegue ler).
 - As credenciais do app ficam em `%APPDATA%\DiscordVoiceWidget\config.json`, fora do repositório.
+- O backup exportado pelas configurações contém o Client Secret em texto puro e fica onde você salvar.
 - Logs em `%LOCALAPPDATA%\DiscordVoiceWidget\logs\`, apagados depois de 7 dias.
 
 ## Solução de problemas

@@ -23,7 +23,7 @@ internal sealed record StreamLiveState(bool IsLive, int ViewerCount, IReadOnlyLi
 
 /// <summary>
 /// Ligacao com o Stream Live (app de transmitir tela entre amigos): "Iniciar live" e
-/// "Encerrar live" no menu e o selo LIVE no widget.
+/// "Encerrar live" no menu e a moldura de ao vivo no widget.
 ///
 /// Pelos eventos nomeados que o Stream Live cria (ver WidgetBridge, no repositorio dele),
 /// o mesmo meio dos sinais entre instancias deste app. Nada fica consultando: o Stream Live
@@ -254,7 +254,7 @@ internal sealed class StreamLiveLink : IDisposable
         StateChanged?.Invoke(state);
     }
 
-    /// <summary>Se o Stream Live cair no meio da live, o fim do processo apaga o selo.</summary>
+    /// <summary>Se o Stream Live cair no meio da live, o fim do processo apaga a moldura.</summary>
     private void WatchProcess()
     {
         StopWatchingProcess();
@@ -271,7 +271,7 @@ internal sealed class StreamLiveLink : IDisposable
         }
         catch (Exception ex)
         {
-            // Sem permissao para acompanhar (nao deveria: mesma conta). O selo ainda some
+            // Sem permissao para acompanhar (nao deveria: mesma conta). A moldura ainda some
             // quando o Stream Live encerra normalmente.
             FileLog.Write($"Stream Live: sem acompanhar o processo: {ex.Message}");
             target.Dispose();

@@ -176,6 +176,15 @@
                             Click="OnChangeCredentialsClick" />
                     <TextBlock Style="{StaticResource Hint}"
                                Text="Use se trocou o Client Secret no portal ou se o Discord recusou a autorização." />
+
+                    <TextBlock Text="Backup" Style="{StaticResource SectionHeader}" />
+
+                    <WrapPanel>
+                        <Button Content="Exportar configurações" Margin="0,0,8,8" Click="OnExportClick" />
+                        <Button Content="Importar configurações" Margin="0,0,8,8" Click="OnImportClick" />
+                    </WrapPanel>
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="Um arquivo XML com todas as opções desta tela, o Application ID e o Client Secret, para recuperar tudo depois de formatar. O secret fica legível no arquivo: guarde fora deste PC e não compartilhe." />
                 </StackPanel>
             </Grid>
         </ScrollViewer>

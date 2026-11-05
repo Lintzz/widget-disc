@@ -138,14 +138,14 @@ public sealed class VoiceWidgetViewModel : ObservableBase
         set => Set(ref _isInCall, value);
     }
 
-    /// <summary>Transmitindo pelo Stream Live: o selo LIVE aparece no widget.</summary>
+    /// <summary>Transmitindo pelo Stream Live: a moldura vermelha e a contagem aparecem no widget.</summary>
     public bool IsLive
     {
         get => _isLive;
         set => Set(ref _isLive, value);
     }
 
-    /// <summary>Quantos estao assistindo a live, mostrado a esquerda do LIVE.</summary>
+    /// <summary>Quantos estao assistindo a live, mostrado no quadradinho vermelho.</summary>
     public int LiveViewers
     {
         get => _liveViewers;
